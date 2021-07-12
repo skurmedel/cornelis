@@ -2,6 +2,8 @@
 
 #include <cornelis/NanoVDBMath.hpp>
 
+#include <ostream>
+
 namespace cornelis {
 using V3 = nanovdb::Vec3<float>;
 using V4 = nanovdb::Vec4<float>;
@@ -16,4 +18,5 @@ struct PixelCoord {
 };
 
 using BBoxi = nanovdb::BBox<PixelCoord>;
+
 } // namespace cornelis

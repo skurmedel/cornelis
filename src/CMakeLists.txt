@@ -2,6 +2,7 @@ add_library(corneliscore STATIC
     FrameBuffer.cpp
     NanoVDBMath.cpp
     Color.cpp
+    Camera.cpp
 
     extern/stb_image_write.cpp
 )

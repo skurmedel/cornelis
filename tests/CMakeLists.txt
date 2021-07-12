@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(catch)
 add_executable(cornelis_test_runner
     test_FrameBuffer.cpp
     test_Color.cpp
+    test_Camera.cpp
 )
 target_link_libraries(cornelis_test_runner PUBLIC corneliscore Catch2::Catch2WithMain)
 
