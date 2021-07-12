@@ -31,3 +31,16 @@ TEST_CASE("FrameBuffer: operator()") {
     CHECK(fb(0, 0)(1) == 0.0f);
     CHECK(fb(0, 0)(2) == 0.0f);
 }
+
+TEST_CASE("quantizeTo8bit: float") {
+    CHECK(quantizeTo8bit(1.0) == uint8_t(255));
+    CHECK(quantizeTo8bit(0.0) == uint8_t(0));
+    CHECK(quantizeTo8bit(0.5) == uint8_t(128));
+    // saturates.
+    CHECK(quantizeTo8bit(+5.0) == uint8_t(255));
+    CHECK(quantizeTo8bit(-5.0) == uint8_t(0));
+}
+
+TEST_CASE("quantizeTo8bit: SRGB") {
+    CHECK(quantizeTo8bit(SRGB{{5.0, 1.0, 0.0}}) == std::array<uint8_t, 3>{255, 255, 0});
+}

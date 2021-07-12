@@ -1,6 +1,10 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <vector>
+
+#include <type_traits>
 
 #include <cornelis/Color.hpp>
 #include <cornelis/Expects.hpp>
@@ -36,6 +40,14 @@ class FrameBuffer {
     auto width() const noexcept -> PixelCoord::value_type { return dims_.max().i + 1; }
     auto height() const noexcept -> PixelCoord::value_type { return dims_.max().j + 1; }
 
+    auto begin() noexcept -> iterator { return std::begin(values_); }
+
+    auto end() noexcept -> iterator { return std::end(values_); }
+
+    auto begin() const noexcept -> const_iterator { return std::begin(values_); }
+
+    auto end() const noexcept -> const_iterator { return std::end(values_); }
+
   private:
     BBoxi dims_;
     container_type values_;
@@ -43,7 +55,8 @@ class FrameBuffer {
 
 template <typename TPixel>
 inline FrameBuffer<TPixel>::FrameBuffer(PixelCoord dimensions)
-    : dims_{{0, 0}, {dimensions.i - 1, dimensions.j - 1}}, values_{width() * height()} {
+    : dims_{{0, 0}, {std::abs(dimensions.i - 1), std::abs(dimensions.j - 1)}},
+      values_{static_cast<std::size_t>(width() * height())} {
     CORNELIS_EXPECTS(dimensions.i != 0 && dimensions.j != 0,
                      "We do not support infinitely thin images.");
 }
@@ -76,4 +89,23 @@ inline auto FrameBuffer<TPixel>::aspect() const noexcept -> double {
 
 using RGBFrameBuffer = FrameBuffer<RGB>;
 using SRGBFrameBuffer = FrameBuffer<SRGB>;
+
+inline auto quantizeTo8bit(double v) -> uint8_t {
+    v = std::round(255.0 * v);
+    return uint8_t(std::clamp(v, 0.0, 255.0));
+}
+
+inline auto quantizeTo8bit(SRGB const &v) -> std::array<uint8_t, 3> {
+    std::array<uint8_t, 3> values = {
+        quantizeTo8bit(v(0)), quantizeTo8bit(v(1)), quantizeTo8bit(v(2))};
+    return values;
+}
+
+inline auto quantizeTo8bit(SRGBFrameBuffer const &fb) -> FrameBuffer<std::array<uint8_t, 3>> {
+    FrameBuffer<std::array<uint8_t, 3>> output({fb.width(), fb.height()});
+    std::transform(
+        fb.begin(), fb.end(), output.begin(), [](auto const &v) { return quantizeTo8bit(v); });
+    return output;
+}
+
 } // namespace cornelis
