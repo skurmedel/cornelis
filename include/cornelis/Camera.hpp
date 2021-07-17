@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <cornelis/Expects.hpp>
 #include <cornelis/Math.hpp>
 
@@ -16,6 +18,8 @@ class PerspectiveCamera {
 
     PerspectiveCamera(PerspectiveCamera const &) = default;
     PerspectiveCamera(PerspectiveCamera &&) = default;
+    auto operator=(PerspectiveCamera const &) -> PerspectiveCamera & = default;
+    auto operator=(PerspectiveCamera &&) -> PerspectiveCamera & = default;
 
     /**
      * Creates a camera ray for the given location on the sensor/film plane.
@@ -24,6 +28,8 @@ class PerspectiveCamera {
      *
      * x values in [0, 1] denote a horizontal position on the film.
      * y values in [0, 1] denote a vertical position on the film.
+     *
+     * \note This is safe to call from multiple threads.
      */
     auto operator()(float x, float y) const noexcept -> Ray;
 
@@ -44,6 +50,8 @@ class PerspectiveCamera {
     V3 u_;
     V3 v_;
 };
+
+using PerspectiveCameraPtr = std::shared_ptr<PerspectiveCamera>;
 
 /// Corresponds to something like a 43 mm lens for a 35 mm camera.
 inline static constexpr float HorizontalFovNormal = 1.011f;

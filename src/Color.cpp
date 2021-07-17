@@ -1,5 +1,30 @@
 #include <cornelis/Color.hpp>
 namespace cornelis {
+
+auto RGB::operator+(RGB const &rgb) const noexcept -> RGB {
+    RGB result;
+    for (int i = 0; i < 3; i++) {
+        result(i) = this->operator()(i) + rgb(i);
+    }
+    return result;
+}
+
+auto RGB::operator-(RGB const &rgb) const noexcept -> RGB {
+    RGB result;
+    for (int i = 0; i < 3; i++) {
+        result(i) = this->operator()(i) - rgb(i);
+    }
+    return result;
+}
+
+auto RGB::operator*(float scalar) const noexcept -> RGB {
+    RGB result;
+    for (int i = 0; i < 3; i++) {
+        result(i) = this->operator()(i) * scalar;
+    }
+    return result;
+}
+
 // adapted from GLSL versions at
 // https://github.com/skurmedel/shaders/blob/master/glsl/gamma_correct.glsl
 /*
@@ -48,7 +73,5 @@ SRGB srgb_gamma_correct(SRGB rgb) {
     return ret;
 }
 
-auto toSRGB(RGB const &rgb) -> SRGB {
-    return srgb_gamma_correct({rgb(0), rgb(1), rgb(2)});
-}
+auto toSRGB(RGB const &rgb) -> SRGB { return srgb_gamma_correct({rgb(0), rgb(1), rgb(2)}); }
 } // namespace cornelis

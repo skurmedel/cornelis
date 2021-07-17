@@ -48,6 +48,8 @@ class FrameBuffer {
 
     auto end() const noexcept -> const_iterator { return std::end(values_); }
 
+    auto data() const noexcept -> value_type const * { return values_.data(); }
+
   private:
     BBoxi dims_;
     container_type values_;

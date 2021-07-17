@@ -3,12 +3,15 @@ add_library(corneliscore STATIC
     NanoVDBMath.cpp
     Color.cpp
     Camera.cpp
+    Scene.cpp
+    Render.cpp
 
     extern/stb_image_write.cpp
 )
 target_compile_features(corneliscore PUBLIC cxx_std_20)
 target_include_directories(corneliscore PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(corneliscore PUBLIC "${PROJECT_SOURCE_DIR}/external")
+target_link_libraries(corneliscore PUBLIC tbb)
 
 add_executable(cornelis
     cornelis.cpp)

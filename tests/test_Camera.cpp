@@ -28,4 +28,9 @@ TEST_CASE("PerspectiveCamera: lookAt") {
     auto ray = cam(0.0, 0.5);
     CHECK(ray.eye() == V3(0));
     CHECK(ray.dir() == V3(1.0, 0, -0.4794255386).normalize());
+
+    cam = PerspectiveCamera::lookAt(V3(0, 0, 2), V3(0, 0, 0), 1.0, 1.0);
+    ray = cam(0.5, 0.5);
+    CHECK(ray.eye() == V3(0, 0, 2));
+    CHECK(ray.dir() == V3(0, 0, -1).normalize());
 }

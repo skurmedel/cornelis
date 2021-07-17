@@ -9,7 +9,7 @@ PerspectiveCamera::PerspectiveCamera()
       v_(0, 0.4794255386 * 2, 0) {}
 
 auto PerspectiveCamera::operator()(float x, float y) const noexcept -> Ray {
-    return Ray(eye_, (eye_ + corner_ + x * u_ + y * v_).normalize());
+    return Ray(eye_, (corner_ + x * u_ + y * v_).normalize());
 }
 
 auto PerspectiveCamera::lookAt(V3 const &from, V3 const &at, float aspectRatio, float hFov)
@@ -26,7 +26,7 @@ auto PerspectiveCamera::lookAt(V3 const &from, V3 const &at, float aspectRatio, 
 
     PerspectiveCamera cam;
     cam.eye_ = from;
-    cam.corner_ = from + dir - 0.5 * u - 0.5 * v;
+    cam.corner_ = dir - 0.5 * u - 0.5 * v;
     cam.u_ = u;
     cam.v_ = v;
 

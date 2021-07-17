@@ -5,6 +5,45 @@
 
 using namespace cornelis;
 
+TEST_CASE("RGB: operator+") {
+    RGB rgb(1.0f, -2.0f, 3.0f);
+    RGB result = rgb + rgb;
+
+    CHECK(result(0) == 2.0f);
+    CHECK(result(1) == -4.0f);
+    CHECK(result(2) == 6.0f);
+
+    result = rgb + RGB(-1.0f, 2.0f, -3.0f);
+
+    CHECK(result(0) == 0.0f);
+    CHECK(result(1) == 0.0f);
+    CHECK(result(2) == 0.0f);
+}
+
+TEST_CASE("RGB: operator-") {
+    RGB rgb(1.0f, -2.0f, 3.0f);
+    RGB result = rgb - rgb;
+
+    CHECK(result(0) == 0.0f);
+    CHECK(result(1) == 0.0f);
+    CHECK(result(2) == 0.0f);
+
+    result = rgb - RGB(-1.0f, 2.0f, -3.0f);
+
+    CHECK(result(0) == 2.0f);
+    CHECK(result(1) == -4.0f);
+    CHECK(result(2) == 6.0f);
+}
+
+TEST_CASE("RGB: operator* scalar") {
+    RGB rgb(1.0f, -2.0f, 4.0f);
+    RGB result = rgb * 0.5f;
+
+    CHECK(result(0) == 0.5f);
+    CHECK(result(1) == -1.0f);
+    CHECK(result(2) == 2.0f);
+}
+
 TEST_CASE("toSRGB(RGB)") {
     RGB c = RGB::black();
     SRGB s = toSRGB(c);
