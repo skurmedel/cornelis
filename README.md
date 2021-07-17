@@ -10,6 +10,8 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
  - [x] Raytraced spheres
  - [x] Render loop
  - [x] Image saving
+ - [ ] Thread local RNG System
+ - [ ] Sample generator
  - [ ] Jittered AA
 
 ### Milestone 2
