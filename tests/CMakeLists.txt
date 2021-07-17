@@ -13,6 +13,7 @@ add_executable(cornelis_test_runner
     test_Color.cpp
     test_Camera.cpp
     test_Scene.cpp
+    test_Random.cpp
 )
 target_link_libraries(cornelis_test_runner PUBLIC corneliscore Catch2::Catch2WithMain)
 
