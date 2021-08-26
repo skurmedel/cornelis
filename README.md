@@ -10,22 +10,27 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
  - [x] Raytraced spheres
  - [x] Render loop
  - [x] Image saving
- - [ ] Thread local RNG System
- - [ ] Sample generator
- - [ ] Jittered AA
+ - [x] Thread local RNG System
+ - [ ] AA
 
 ### Milestone 2
  - [ ] Monte Carlo path tracing
+
+### Milestone 3
+ - [ ] Sample point generators
+ - [ ] Quasi Monte Carlo via Sobol sequences or similar
+ - [ ] Gaussian Filtering via Filter Importance Sampling
+
+### Milestone 4
  - [ ] Next event estimation (fancy name for direct light sampling)
  - [ ] Progressive mode (sample for x seconds)
  - [ ] OpenEXR output
  - [ ] Level Set surface rendering via NanoVDB
   
-### Milestone 3
- - [ ] Gaussian Filtering
+### Milestone 5
  - [ ] Fog volumes
 
-### Milestone 4
+### Milestone 6
  - [ ] Importance Sampling (for the material)
  - [ ] Spectral rendering (i.e not just sRGB)
  - [ ] Area lights
