@@ -5,20 +5,20 @@
 using namespace cornelis;
 
 TEST_CASE("FrameBuffer: constructor") {
-    RGBFrameBuffer fb({128, 64});
+    RGBFrameBuffer fb(PixelRect(128, 64));
 
-    CHECK_THROWS(RGBFrameBuffer({128, 0}));
-    CHECK_THROWS(RGBFrameBuffer({0, 128}));
-    CHECK_THROWS(RGBFrameBuffer({0, 0}));
+    CHECK_THROWS(RGBFrameBuffer(PixelRect(128, 0)));
+    CHECK_THROWS(RGBFrameBuffer(PixelRect(0, 128)));
+    CHECK_THROWS(RGBFrameBuffer(PixelRect(0, 0)));
 }
 
 TEST_CASE("FrameBuffer: aspect()") {
-    RGBFrameBuffer fb({128, 64});
+    RGBFrameBuffer fb(PixelRect(128, 64));
     CHECK(fb.aspect() == 2.0f); // 128.0/64.0 is exactly representible.
 }
 
 TEST_CASE("FrameBuffer: operator()") {
-    RGBFrameBuffer fb({128, 64});
+    RGBFrameBuffer fb(PixelRect(128, 64));
 
     // "zero" by default.
     CHECK(fb(0, 0)(0) == 0.0f);
