@@ -11,7 +11,7 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
  - [x] Render loop
  - [x] Image saving
  - [x] Thread local RNG System
- - [ ] AA
+ - [x] AA
 
 ### Milestone 2
  - [ ] Basic diffuse & glossy specular mix "standard material"

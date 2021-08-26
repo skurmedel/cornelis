@@ -24,10 +24,25 @@ struct NormalizedFrameBufferCoord {
     float dx, dy, x, y;
 };
 
+constexpr int SamplesAA = 16;
+
 // Generate camera rays for the pixel given in normalized frame buffer coordinates.
-auto generateCameraRays(PerspectiveCameraPtr cam, NormalizedFrameBufferCoord const &coord)
-    -> std::vector<Ray> {
-    return {(*cam)(coord.x + 0.5f * coord.dx, coord.y + 0.5f * coord.dy)};
+auto generateCameraRays(TileInfo &tileInfo,
+                        PerspectiveCameraPtr cam,
+                        NormalizedFrameBufferCoord const &coord) -> std::vector<Ray> {
+    std::vector<Ray> rays;
+    rays.reserve(SamplesAA);
+
+    // Completely random sampling is known to be substandard, we should use a low-discrepancy
+    // sequence of points, like multi-jittered sampling or Sobol sequences. We will address this in
+    // Milestone 3 when we have generators for these type of sequences.
+    for (auto k = 0; k < SamplesAA; k++) {
+        float phi1 = tileInfo.randomGen.next();
+        float phi2 = tileInfo.randomGen.next();
+        rays.emplace_back((*cam)(coord.x + phi1 * coord.dx, coord.y + phi2 * coord.dy));
+    }
+
+    return rays;
 }
 
 auto traceRays(std::vector<Ray> const &rays) -> std::vector<RGB> {
@@ -67,7 +82,7 @@ RenderSession::RenderSession(Scene const &sc, RenderOptions options)
 RenderSession::~RenderSession() {}
 
 auto RenderSession::render() -> void {
-    RGBFrameBuffer fb(PixelRect(128, 64));
+    RGBFrameBuffer fb(PixelRect(512, 256));
     PRNG rootRng;
 
     puts("Starting render.");
@@ -87,7 +102,7 @@ auto RenderSession::render() -> void {
             for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
                 NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
 
-                auto cameraRays = generateCameraRays(me_->scene.camera(), screenCoord);
+                auto cameraRays = generateCameraRays(tileInfo, me_->scene.camera(), screenCoord);
                 auto results = traceRays(cameraRays);
 
                 auto color = std::accumulate(results.begin(), results.end(), RGB::black());

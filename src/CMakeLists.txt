@@ -17,6 +17,6 @@ target_link_libraries(corneliscore PUBLIC tbb)
 
 add_executable(cornelis
     cornelis.cpp)
-target_link_libraries(cornelis PRIVATE corneliscore )
+target_link_libraries(cornelis PUBLIC corneliscore )
 target_compile_features(cornelis PUBLIC cxx_std_20)
 target_include_directories(cornelis PRIVATE "${PROJECT_SOURCE_DIR}/external")
