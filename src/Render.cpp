@@ -73,11 +73,16 @@ auto RenderSession::render() -> void {
     puts("Starting render.");
 
     FrameTiling tiling(PixelRect(fb.width(), fb.height()));
+    // Set up PRNGs to start at different points in the period.
     for (auto &tileInfo : tiling) {
         tileInfo.randomGen = cloneForThread(rootRng, tileInfo.tileNumber);
     }
 
     tbb::parallel_for_each(std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
+        printf("Rendering tile %d on thread %d.\n",
+               tileInfo.tileNumber,
+               tbb::this_task_arena::current_thread_index());
+
         for (auto j = tileInfo.bounds.min().j; j <= tileInfo.bounds.max().j; j++) {
             for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
                 NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});

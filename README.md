@@ -14,6 +14,7 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
  - [ ] AA
 
 ### Milestone 2
+ - [ ] Basic diffuse & glossy specular mix "standard material"
  - [ ] Monte Carlo path tracing
 
 ### Milestone 3
