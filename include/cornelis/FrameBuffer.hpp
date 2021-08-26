@@ -25,7 +25,7 @@ class FrameBuffer {
     /**
      * \pre !dimensions.zero()
      */
-    explicit FrameBuffer(PixelCoord dimensions);
+    explicit FrameBuffer(PixelRect dimensions);
     auto operator()(PixelCoord::value_type i, PixelCoord::value_type j) const noexcept
         -> value_type const &;
     auto operator()(PixelCoord::value_type i, PixelCoord::value_type j) noexcept -> value_type &;
@@ -37,8 +37,8 @@ class FrameBuffer {
      */
     auto aspect() const noexcept -> double;
 
-    auto width() const noexcept -> PixelCoord::value_type { return dims_.max().i + 1; }
-    auto height() const noexcept -> PixelCoord::value_type { return dims_.max().j + 1; }
+    auto width() const noexcept -> PixelCoord::value_type { return dims_.width(); }
+    auto height() const noexcept -> PixelCoord::value_type { return dims_.height(); }
 
     auto begin() noexcept -> iterator { return std::begin(values_); }
 
@@ -51,17 +51,13 @@ class FrameBuffer {
     auto data() const noexcept -> value_type const * { return values_.data(); }
 
   private:
-    BBoxi dims_;
+    PixelRect dims_;
     container_type values_;
 };
 
 template <typename TPixel>
-inline FrameBuffer<TPixel>::FrameBuffer(PixelCoord dimensions)
-    : dims_{{0, 0}, {std::abs(dimensions.i - 1), std::abs(dimensions.j - 1)}},
-      values_{static_cast<std::size_t>(width() * height())} {
-    CORNELIS_EXPECTS(dimensions.i != 0 && dimensions.j != 0,
-                     "We do not support infinitely thin images.");
-}
+inline FrameBuffer<TPixel>::FrameBuffer(PixelRect dimensions)
+    : dims_{dimensions}, values_{static_cast<std::size_t>(width() * height())} {}
 
 template <typename TPixel>
 inline auto FrameBuffer<TPixel>::operator()(PixelCoord::value_type i,
@@ -104,7 +100,7 @@ inline auto quantizeTo8bit(SRGB const &v) -> std::array<uint8_t, 3> {
 }
 
 inline auto quantizeTo8bit(SRGBFrameBuffer const &fb) -> FrameBuffer<std::array<uint8_t, 3>> {
-    FrameBuffer<std::array<uint8_t, 3>> output({fb.width(), fb.height()});
+    FrameBuffer<std::array<uint8_t, 3>> output(PixelRect(fb.width(), fb.height()));
     std::transform(
         fb.begin(), fb.end(), output.begin(), [](auto const &v) { return quantizeTo8bit(v); });
     return output;

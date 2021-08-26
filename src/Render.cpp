@@ -4,11 +4,14 @@
 
 #include <tbb/blocked_range2d.h>
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_for_each.h>
 
 #include "extern/stb_image_write.h"
 
 #include <cornelis/FrameBuffer.hpp>
+#include <cornelis/PRNG.hpp>
 #include <cornelis/Render.hpp>
+#include <cornelis/Tiles.hpp>
 
 namespace cornelis {
 struct NormalizedFrameBufferCoord {
@@ -42,13 +45,13 @@ auto traceRays(std::vector<Ray> const &rays) -> std::vector<RGB> {
 }
 
 auto saveImage(RGBFrameBuffer const &fb) -> void {
-    SRGBFrameBuffer srgbFb({fb.width(), fb.height()});
+    SRGBFrameBuffer srgbFb(PixelRect(fb.width(), fb.height()));
     std::transform(fb.begin(), fb.end(), srgbFb.begin(), toSRGB);
     auto data8bit = quantizeTo8bit(srgbFb);
 
     // Todo: This is a bit iffy if for some reason the elements of data8bit would be padded.
     stbi_write_png(
-        "cornelisrender.png", data8bit.width(), data8bit.height(), 3, data8bit.data(), 0);
+        "cornelisrender2.png", data8bit.width(), data8bit.height(), 3, data8bit.data(), 0);
 }
 
 struct RenderSession::State {
@@ -64,16 +67,21 @@ RenderSession::RenderSession(Scene const &sc, RenderOptions options)
 RenderSession::~RenderSession() {}
 
 auto RenderSession::render() -> void {
-    RGBFrameBuffer fb({128, 64});
+    RGBFrameBuffer fb(PixelRect(128, 64));
+    PRNG rootRng;
 
     puts("Starting render.");
 
-    tbb::blocked_range2d<PixelCoord::value_type> range(0, fb.width(), 0, fb.height());
-    tbb::parallel_for(range, [&](decltype(range) const &subrange) -> void {
-        for (auto j = subrange.cols().begin(); j != subrange.cols().end(); j++) {
-            for (auto i = subrange.rows().begin(); i != subrange.rows().end(); i++) {
+    FrameTiling tiling(PixelRect(fb.width(), fb.height()));
+    for (auto &tileInfo : tiling) {
+        tileInfo.randomGen = cloneForThread(rootRng, tileInfo.tileNumber);
+    }
+
+    tbb::parallel_for_each(std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
+        for (auto j = tileInfo.bounds.min().j; j <= tileInfo.bounds.max().j; j++) {
+            for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
                 NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
-                
+
                 auto cameraRays = generateCameraRays(me_->scene.camera(), screenCoord);
                 auto results = traceRays(cameraRays);
 
