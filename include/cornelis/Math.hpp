@@ -4,6 +4,8 @@
 #include <cornelis/NanoVDBMath.hpp>
 
 #include <ostream>
+#include <tuple>
+#include <type_traits>
 
 namespace cornelis {
 using V3 = nanovdb::Vec3<float>;
@@ -11,6 +13,30 @@ using V4 = nanovdb::Vec4<float>;
 using BBox = nanovdb::BBox<V3>;
 using Ray = nanovdb::Ray<float>;
 
+/**
+ * Represents a point in some space (doesn't have to be a vector space).
+ */
+template <typename T = float>
+struct P2 {
+    using element_type = T;
+    using value_type = element_type;
+
+    P2() : values{0} {}
+    P2(element_type x, element_type y) : values{x, y} {}
+
+    template <std::size_t idx>
+    auto get() -> std::tuple_element_t<idx, P2<T>> & {
+        return values[idx];
+    }
+    template <std::size_t idx>
+    auto get() const -> std::tuple_element_t<idx, P2<T>> const & {
+        return values[idx];
+    }
+
+    element_type values[2];
+};
+
+// TODO: Make this a P2 instead.
 struct PixelCoord {
     using value_type = int32_t;
     using ValueType = value_type;
@@ -74,3 +100,18 @@ inline auto operator<<(std::ostream &s, PixelRect const &rect) -> std::ostream &
 }
 
 } // namespace cornelis
+
+// Specializations for structured binding support.
+namespace std {
+template <typename T>
+struct tuple_size<cornelis::P2<T>> : integral_constant<size_t, 2> {};
+
+template <typename T>
+struct tuple_element<0, cornelis::P2<T>> {
+    using type = T;
+};
+template <typename T>
+struct tuple_element<1, cornelis::P2<T>> {
+    using type = T;
+};
+} // namespace std

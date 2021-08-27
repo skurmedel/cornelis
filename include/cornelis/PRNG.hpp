@@ -13,7 +13,15 @@ struct PRNG {
 
     PRNG(uint64_t s = DefaultSeed) : xoroshiro(s) {}
 
-    auto next() -> float { return XoshiroCpp::FloatFromBits(xoroshiro()); }
+    /**
+     * Generate a floating point number in the interval [0, 1).
+     */
+    auto next() noexcept -> float { return XoshiroCpp::FloatFromBits(xoroshiro()); }
+
+    /**
+     * Alias for next().
+     */
+    auto operator()() noexcept -> float { return next(); }
 
     XoshiroCpp::Xoshiro128Plus xoroshiro;
 

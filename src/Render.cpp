@@ -37,8 +37,8 @@ auto generateCameraRays(TileInfo &tileInfo,
     // sequence of points, like multi-jittered sampling or Sobol sequences. We will address this in
     // Milestone 3 when we have generators for these type of sequences.
     for (auto k = 0; k < SamplesAA; k++) {
-        float phi1 = tileInfo.randomGen.next();
-        float phi2 = tileInfo.randomGen.next();
+        float phi1 = tileInfo.randomGen();
+        float phi2 = tileInfo.randomGen();
         rays.emplace_back((*cam)(coord.x + phi1 * coord.dx, coord.y + phi2 * coord.dy));
     }
 
@@ -94,7 +94,7 @@ auto RenderSession::render() -> void {
     }
 
     tbb::parallel_for_each(std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
-        printf("Rendering tile %d on thread %d.\n",
+        printf("Rendering tile %zu on thread %d.\n",
                tileInfo.tileNumber,
                tbb::this_task_arena::current_thread_index());
 
