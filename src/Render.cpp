@@ -8,7 +8,9 @@
 
 #include "extern/stb_image_write.h"
 
+#include <cornelis/Color.hpp>
 #include <cornelis/FrameBuffer.hpp>
+#include <cornelis/Materials.hpp>
 #include <cornelis/PRNG.hpp>
 #include <cornelis/Render.hpp>
 #include <cornelis/Tiles.hpp>
@@ -24,7 +26,7 @@ struct NormalizedFrameBufferCoord {
     float dx, dy, x, y;
 };
 
-constexpr int SamplesAA = 16;
+constexpr int SamplesAA = 2048;
 
 // Generate camera rays for the pixel given in normalized frame buffer coordinates.
 auto generateCameraRays(TileInfo &tileInfo,
@@ -44,19 +46,50 @@ auto generateCameraRays(TileInfo &tileInfo,
 
     return rays;
 }
+constexpr float RussianRouletteFactor = 0.75;
 
-auto traceRays(std::vector<Ray> const &rays) -> std::vector<RGB> {
-    std::vector<RGB> results;
-    results.resize(rays.size());
-    std::transform(rays.begin(), rays.end(), results.begin(), [&](Ray const &ray) {
-        float t0, t1;
-        if (ray.intersects(V3(0), 0.25f, t0, t1)) {
-            return RGB(1.0f, 0.0, 0.0f);
-        } else {
-            return RGB::black();
+auto randomSphere(PRNG &prng) -> V3 {
+    auto theta = 2.0f * cornelis::Pi * prng();
+    auto phi = std::acos(2.0f * prng() - 1.0f);
+
+    return V3(cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta));
+}
+
+auto lightIn(Scene const &scene, TileInfo &tileInfo, Ray const &ray) -> RGB {
+    V3 const w_out = -ray.dir();
+
+    SurfaceHitInfo hit;
+    hit.t0 = INFINITY;
+    bool anyHit = false;
+    StandardMaterial const *mat = nullptr;
+    for (std::size_t i = 0; i < scene.spheres().size(); ++i) {
+        SurfaceHitInfo candidateHit;
+        if (scene.spheres().geometry(i).intersects(ray, candidateHit)) {
+            anyHit = true;
+            if (candidateHit.t0 < hit.t0) {
+                hit = candidateHit;
+                mat = &scene.spheres().material(i);
+            }
         }
-    });
-    return results;
+    }
+    if (!anyHit)
+        return RGB::black();
+
+    // TODO: We can chose a much better russian roulette factor.
+    auto const prob = RussianRouletteFactor;
+    auto const P = hit.P;
+    auto const N = hit.N;
+    auto const L_e = mat->emission(P);
+    if (prob <= tileInfo.randomGen())
+        return L_e;
+    BSDF const &bsdf = mat->bsdf(P, N);
+
+    // TODO: we can do much better here by importance sampling.
+    V3 w_in = randomSphere(tileInfo.randomGen);
+    // TODO: we should probably chose prob here based on the material at least.
+
+    RGB L_i = lightIn(scene, tileInfo, Ray(P, w_in));
+    return L_e + L_i * bsdf(w_in, w_out) * abs(std::max(w_in.dot(N), 0.0f)) / prob;
 }
 
 auto saveImage(RGBFrameBuffer const &fb) -> void {
@@ -87,7 +120,7 @@ auto RenderSession::render() -> void {
 
     puts("Starting render.");
 
-    FrameTiling tiling(PixelRect(fb.width(), fb.height()));
+    FrameTiling tiling(PixelRect(fb.width(), fb.height()), PixelRect{16, 16});
     // Set up PRNGs to start at different points in the period.
     for (auto &tileInfo : tiling) {
         tileInfo.randomGen = cloneForThread(rootRng, tileInfo.tileNumber);
@@ -103,7 +136,13 @@ auto RenderSession::render() -> void {
                 NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
 
                 auto cameraRays = generateCameraRays(tileInfo, me_->scene.camera(), screenCoord);
-                auto results = traceRays(cameraRays);
+                std::vector<RGB> results;
+                results.resize(cameraRays.size());
+
+                std::transform(cameraRays.begin(),
+                               cameraRays.end(),
+                               results.begin(),
+                               [&](Ray const &ray) { return lightIn(me_->scene, tileInfo, ray); });
 
                 auto color = std::accumulate(results.begin(), results.end(), RGB::black());
                 // Box-filter 0.5f radius

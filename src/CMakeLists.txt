@@ -7,6 +7,7 @@ add_library(corneliscore STATIC
     Render.cpp
     Random.cpp
     Tiles.cpp
+    Objects.cpp
 
     extern/stb_image_write.cpp
 )

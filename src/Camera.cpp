@@ -17,7 +17,7 @@ auto PerspectiveCamera::lookAt(V3 const &from, V3 const &at, float aspectRatio, 
     static V3 const up(0, 1, 0);
 
     V3 dir = (at - from).normalize();
-    V3 u = dir.cross(up);
+    V3 u = up.cross(dir);
     V3 v = u.cross(dir);
 
     float fovScale = 2.0 * std::sin(hFov * 0.5);

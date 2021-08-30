@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <cornelis/Camera.hpp>
+#include <cornelis/Objects.hpp>
 
 namespace cornelis {
 class Scene {
@@ -17,6 +18,9 @@ class Scene {
 
     auto setCamera(PerspectiveCameraPtr camera) -> void;
     auto camera() const noexcept -> PerspectiveCameraPtr;
+
+    auto spheres() noexcept -> SurfaceBag<SphereSurface> &;
+    auto spheres() const noexcept -> SurfaceBag<SphereSurface> const &;
 
   private:
     struct State;

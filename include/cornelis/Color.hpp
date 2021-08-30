@@ -53,6 +53,13 @@ class RGB {
      */
     auto operator*(float scalar) const noexcept -> RGB;
 
+    auto operator/(float scalar) const noexcept -> RGB;
+
+    /**
+     * Componentwise multiplication.
+     */
+    auto operator*(RGB const &) const noexcept -> RGB;
+
     friend auto toSRGB(RGB const &) -> SRGB;
 
   private:

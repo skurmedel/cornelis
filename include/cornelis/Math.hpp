@@ -13,6 +13,9 @@ using V4 = nanovdb::Vec4<float>;
 using BBox = nanovdb::BBox<V3>;
 using Ray = nanovdb::Ray<float>;
 
+// On C++20 we could use <numbers>
+constexpr float Pi = 3.14159265359f;
+
 /**
  * Represents a point in some space (doesn't have to be a vector space).
  */
@@ -98,6 +101,10 @@ inline auto operator<<(std::ostream &s, PixelRect const &rect) -> std::ostream &
       << "}}";
     return s;
 }
+
+// TODO: make me complete.
+struct Transform {};
+
 
 } // namespace cornelis
 

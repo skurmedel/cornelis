@@ -25,6 +25,22 @@ auto RGB::operator*(float scalar) const noexcept -> RGB {
     return result;
 }
 
+auto RGB::operator/(float scalar) const noexcept -> RGB {
+    RGB result;
+    for (int i = 0; i < 3; i++) {
+        result(i) = this->operator()(i) / scalar;
+    }
+    return result;
+}
+
+auto RGB::operator*(RGB const &other) const noexcept -> RGB {
+    RGB result;
+    for (int i = 0; i < 3; i++) {
+        result(i) = this->operator()(i) * other(i);
+    }
+    return result;
+}
+
 // adapted from GLSL versions at
 // https://github.com/skurmedel/shaders/blob/master/glsl/gamma_correct.glsl
 /*

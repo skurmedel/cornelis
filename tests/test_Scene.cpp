@@ -23,3 +23,10 @@ TEST_CASE("Scene: setCamera") {
 
     CHECK_THROWS(scene.setCamera(nullptr));
 }
+
+TEST_CASE("Scene: object spheres") {
+    Scene scene;
+
+    auto &spheres = scene.spheres();
+    CHECK(spheres.size() == 0);
+}

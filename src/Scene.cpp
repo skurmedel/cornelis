@@ -6,6 +6,7 @@ struct Scene::State {
     State() : activeCamera{std::make_shared<PerspectiveCamera>()} {}
 
     PerspectiveCameraPtr activeCamera;
+    SurfaceBag<SphereSurface> spheres;
 };
 
 Scene::Scene() : me_(std::make_unique<State>()) {}
@@ -16,5 +17,9 @@ auto Scene::setCamera(PerspectiveCameraPtr camera) -> void {
     me_->activeCamera = camera;
 }
 auto Scene::camera() const noexcept -> PerspectiveCameraPtr { return me_->activeCamera; }
+
+auto Scene::spheres() noexcept -> SurfaceBag<SphereSurface> & { return me_->spheres; }
+auto Scene::spheres() const noexcept -> SurfaceBag<SphereSurface> const & { return me_->spheres; }
+
 
 } // namespace cornelis

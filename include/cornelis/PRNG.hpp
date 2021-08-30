@@ -14,8 +14,9 @@ struct PRNG {
     PRNG(uint64_t s = DefaultSeed) : xoroshiro(s) {}
 
     /**
-     * Generate a floating point number in the interval [0, 1).
+     * Generate a floating point number in the interval [0, 1). The distribution is uniform.
      */
+    // TODO: this name sucks, fix it.
     auto next() noexcept -> float { return XoshiroCpp::FloatFromBits(xoroshiro()); }
 
     /**
