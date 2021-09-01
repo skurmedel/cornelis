@@ -1,3 +1,13 @@
+include(FetchContent)
+
+FetchContent_Declare(
+  xsimd
+  GIT_REPOSITORY https://github.com/xtensor-stack/xsimd.git
+  GIT_TAG        7.6.0
+)
+
+FetchContent_MakeAvailable(xsimd)
+
 add_library(corneliscore STATIC
     FrameBuffer.cpp
     NanoVDBMath.cpp
@@ -8,12 +18,14 @@ add_library(corneliscore STATIC
     Random.cpp
     Tiles.cpp
     Objects.cpp
+    Linalg.cpp
 
     extern/stb_image_write.cpp
 )
 target_compile_features(corneliscore PUBLIC cxx_std_20)
 target_include_directories(corneliscore PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(corneliscore SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}/external")
+target_link_libraries(corneliscore PUBLIC xsimd)
 target_link_libraries(corneliscore PUBLIC tbb)
 
 add_executable(cornelis
