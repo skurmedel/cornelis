@@ -9,6 +9,13 @@ auto RGB::operator+(RGB const &rgb) const noexcept -> RGB {
     return result;
 }
 
+auto RGB::operator+=(RGB const &rgb) noexcept -> RGB & {
+    for (int i = 0; i < 3; i++) {
+        this->operator()(i) += rgb(i);
+    }
+    return *this;
+}
+
 auto RGB::operator-(RGB const &rgb) const noexcept -> RGB {
     RGB result;
     for (int i = 0; i < 3; i++) {
@@ -39,6 +46,13 @@ auto RGB::operator*(RGB const &other) const noexcept -> RGB {
         result(i) = this->operator()(i) * other(i);
     }
     return result;
+}
+
+auto RGB::operator*=(RGB const &other) noexcept -> RGB & {
+    for (int i = 0; i < 3; i++) {
+        this->operator()(i) *= other(i);
+    }
+    return *this;
 }
 
 // adapted from GLSL versions at

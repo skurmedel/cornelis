@@ -52,7 +52,7 @@ auto matrixMultiply(float4x4 const &A, float4 const &x, float4 &y) noexcept -> v
     result.store_aligned(y.values);
 }
 
-auto transformRays(float4x4 const &A, std::span<ray4> rays) noexcept -> void {
+/*auto transformRays(float4x4 const &A, std::span<ray4> rays) noexcept -> void {
     simdMatrix4x4 matrix(A);
 
     for (auto &ray : rays) {
@@ -66,5 +66,5 @@ auto transformRays(float4x4 const &A, std::span<ray4> rays) noexcept -> void {
         pos.store_aligned(ray.pos.values);
         dir.store_aligned(ray.dir.values);
     }
- }
+ }*/
 } // namespace cornelis

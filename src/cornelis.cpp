@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
                         StandardMaterial{RGB(0.9, 0.9, 0.9), RGB::black()});
     // A "light".
     scene.spheres().add(SphereSurface{.center = V3(50, 50, -50), .radius = 7.0f},
-                        StandardMaterial{RGB::black(), RGB(1.0, 1.0, 1.0) * 400.0f});
+                        StandardMaterial{RGB::black(), RGB(1.0, 1.0, 1.0) * 50.0f});
 
     RenderSession session(scene, RenderOptions{});
     session.render();

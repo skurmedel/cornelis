@@ -43,6 +43,7 @@ class RGB {
      * Vector addition.
      */
     auto operator+(RGB const &) const noexcept -> RGB;
+    auto operator+=(RGB const &) noexcept -> RGB &;
     /**
      * Vector subtraction.
      */
@@ -59,6 +60,7 @@ class RGB {
      * Componentwise multiplication.
      */
     auto operator*(RGB const &) const noexcept -> RGB;
+    auto operator*=(RGB const &) noexcept -> RGB &;
 
     friend auto toSRGB(RGB const &) -> SRGB;
 

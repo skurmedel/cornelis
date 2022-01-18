@@ -27,6 +27,7 @@ struct SurfaceHitInfo {
     float t0;
     V3 P;
     V3 N;
+    StandardMaterial const *mat;
 };
 
 /**

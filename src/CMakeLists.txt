@@ -19,6 +19,7 @@ add_library(corneliscore STATIC
     Tiles.cpp
     Objects.cpp
     Linalg.cpp
+    SoA.cpp
 
     extern/stb_image_write.cpp
 )
