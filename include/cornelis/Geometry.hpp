@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cornelis/SoA.hpp>
 #include <cornelis/Math.hpp>
+#include <cornelis/SoA.hpp>
 
 namespace cornelis {
 struct IntersectionData : public SoAObject<tags::Intersected,
@@ -30,6 +30,14 @@ auto intersectSphere(SoATuple3f rayOrigins,
                      SoATuple3f rayDirs,
                      float3 sphereCenter,
                      float sphereRadius,
+                     std::size_t materialId,
+                     IntersectionData &data,
+                     std::vector<std::size_t> const &activeRayIds) -> void;
+
+auto intersectPlane(SoATuple3f rayOrigins,
+                     SoATuple3f rayDirs,
+                     float3 planeNormal,
+                     float3 planePoint,
                      std::size_t materialId,
                      IntersectionData &data,
                      std::vector<std::size_t> const &activeRayIds) -> void;

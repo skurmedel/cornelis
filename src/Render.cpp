@@ -120,7 +120,7 @@ struct RayBatch : public SoAObject<tags::PositionX,
     std::vector<std::size_t> activeList;
 };
 
-constexpr int SamplesAA = 16000;
+constexpr int SamplesAA = 100000;
 
 // Generate camera rays for the pixel given in normalized frame buffer coordinates.
 auto generateCameraRays(TileInfo &tileInfo,
@@ -256,7 +256,7 @@ auto RenderSession::render() -> void {
            me_->scene.planes.get<tags::PositionX>().size(),
            me_->scene.materials.size());
 
-    FrameTiling tiling(PixelRect(fb.width(), fb.height()), PixelRect{16, 16});
+    FrameTiling tiling(PixelRect(fb.width(), fb.height()), PixelRect{32, 32});
     // Set up PRNGs to start at different points in the period.
     for (auto &tileInfo : tiling) {
         tileInfo.randomGen = cloneForThread(rootRng, tileInfo.tileNumber);

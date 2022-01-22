@@ -13,6 +13,13 @@ using V4 = nanovdb::Vec4<float>;
 using BBox = nanovdb::BBox<V3>;
 using Ray = nanovdb::Ray<float>;
 
+// TODO: find a number for this based on brain power and not guesswork.
+inline constexpr float RayEpsilon = 0.00005f;
+
+inline auto isAlmostZero(float v) -> bool {
+    return abs(v) < RayEpsilon;
+}
+
 // On C++20 we could use <numbers>
 constexpr float Pi = 3.14159265359f;
 

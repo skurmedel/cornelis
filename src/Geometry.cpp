@@ -8,7 +8,7 @@ auto IntersectionData::reset() -> void {
     auto rayparams = get<tags::RayParam0>();
     auto intersected = get<tags::Intersected>();
     std::fill(std::begin(rayparams), std::end(rayparams), INFINITY);
-    //std::fill(std::begin(intersected), std::end(intersected), false);
+    // std::fill(std::begin(intersected), std::end(intersected), false);
 }
 
 namespace {
@@ -106,4 +106,66 @@ auto intersectSphere(SoATuple3f rayOrigins,
         }
     }
 }
+
+auto intersectPlane(SoATuple3f rayOrigins,
+                    SoATuple3f rayDirs,
+                    float3 planeNormal,
+                    float3 planePoint,
+                    std::size_t materialId,
+                    IntersectionData &data,
+                    std::vector<std::size_t> const &activeRayIds) -> void {
+    auto [rx, ry, rz] = rayOrigins;
+    auto [rdx, rdy, rdz] = rayDirs;
+    auto intersected = data.get<tags::Intersected>();
+    auto params = data.get<tags::RayParam0>();
+    auto materialIds = data.get<tags::MaterialId>();
+    auto [IPx, IPy, IPz] = getPositions(data);
+    auto [INx, INy, INz] = getNormalSpans(data);
+    // TODO: precondition that ensure sizes are the same!
+
+    for (auto k : activeRayIds) {
+        /*
+            A point c is in the plane if (c - P) . N = 0 where P a point on the plane, N its normal.
+
+            Substituting the ray equation:
+
+                (o + t d - P) . N = ( (o - P) + t d ) . N = (o - P) . N + t d . N = 0
+
+            And so
+
+                t = -((o - P) . N) / d . N
+
+            We need to check for d . N != 0. If d . N and o == P, t = 0, otherwise there is no
+           solution.
+
+            We'll call A := -((o - P) . N), B := d . N
+        */
+        // Check for a well behaved ray.
+        if (isAlmostZero(rdx[k]) && isAlmostZero(rdy[k]) && isAlmostZero(rdz[k])) {
+            intersected[k] = false;
+            continue;
+        }
+
+        float3 diff = float3{rx[k], ry[k], rz[k]} - planePoint;
+        float A = -dot(diff, planeNormal);
+        float B = dot(float3{rdx[k], rdy[k], rdz[k]}, planeNormal);
+
+        if (diff != float3{0} && isAlmostZero(B)) // TODO: BETTER TEST!
+            intersected[k] = false;
+        else {
+            float t = 0.0f;
+            if (!isAlmostZero(B))
+                t = A / B;
+            if (params[k] > t) {
+                params[k] = t;
+                intersected[k] = true;
+                float3 sP = rayT(rayOrigins, rayDirs, k, t);
+                setPosition(data, k, sP);
+                setNormal(data, k, normalize(planeNormal));
+                materialIds[k] = materialId;
+            }
+        }
+    }
+}
+
 } // namespace cornelis
