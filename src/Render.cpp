@@ -13,9 +13,12 @@
 #include <cornelis/Materials.hpp>
 #include <cornelis/PRNG.hpp>
 #include <cornelis/Render.hpp>
+#include <cornelis/Scene.hpp>
 #include <cornelis/Tiles.hpp>
 
 #include <cornelis/SoA.hpp>
+
+#include <cornelis/Geometry.hpp>
 
 namespace cornelis {
 struct NormalizedFrameBufferCoord {
@@ -31,35 +34,35 @@ struct NormalizedFrameBufferCoord {
 constexpr float RussianRouletteFactor = 0.75;
 
 struct Basis {
-    V3 N;
-    V3 T;
-    V3 B;
+    float3 N;
+    float3 T;
+    float3 B;
 };
 
-auto constructBasis(V3 const &N) -> Basis {
+auto constructBasis(float3 const &N) -> Basis {
     // Invent a tangent.
-    V3 helper(0, 1, 0);
+    float3 helper(0, 1, 0);
     if (abs(N[1]) > 0.95)
-        helper = V3(0, 0, 1);
+        helper = float3(0, 0, 1);
     Basis base{.N = N};
-    base.T = (helper.cross(N)).normalize();
-    base.B = base.T.cross(N);
+    base.T = normalize(cross(helper, N));
+    base.B = cross(base.T, N);
     return base;
 }
 
-auto randomHemisphere(PRNG &prng) -> V3 {
+auto randomHemisphere(PRNG &prng) -> float3 {
     float x1 = prng();
     float x2 = prng();
 
     float a = 2.0 * Pi * x2;
     float b = sqrt(1.0f - x1 * x1);
 
-    return V3(cos(a) * b, sin(a) * b, x1);
+    return float3(cos(a) * b, sin(a) * b, x1);
 }
 
-auto randomHemisphere(PRNG &prng, Basis const &base) -> V3 {
-    V3 v = randomHemisphere(prng);
-    return v[0] * base.B + v[1] * base.T + v[2] * base.N;
+auto randomHemisphere(PRNG &prng, Basis const &base) -> float3 {
+    float3 v = randomHemisphere(prng);
+    return base.B * v[0] + base.T * v[1] + base.N * v[2];
 }
 
 constexpr auto randomHemispherePDF() -> float { return 1.0f / (2.0f * Pi); }
@@ -80,11 +83,20 @@ struct SurfaceHitTag {
     using element_type = SurfaceHitInfo;
 };
 
-struct RayBatch : public SoAObject<RayTag, PathThroughputTag, LightInTag, SurfaceHitTag> {
+struct RayBatch : public SoAObject<tags::PositionX,
+                                   tags::PositionY,
+                                   tags::PositionZ,
+                                   tags::DirectionX,
+                                   tags::DirectionY,
+                                   tags::DirectionZ,
+                                   PathThroughputTag,
+                                   LightInTag> {
     RayBatch(std::size_t n) : SoAObject(n), activeList(n) {
         std::iota(std::begin(activeList), std::end(activeList), 0);
         auto throughput = get<PathThroughputTag>();
         std::fill(std::begin(throughput), std::end(throughput), RGB(1.0f, 1.0f, 1.0f));
+        auto L_i = get<LightInTag>();
+        std::fill(std::begin(L_i), std::end(L_i), RGB::black());
     }
 
     auto throughput(std::size_t k) -> RGB { return get<PathThroughputTag>()[k]; }
@@ -95,9 +107,15 @@ struct RayBatch : public SoAObject<RayTag, PathThroughputTag, LightInTag, Surfac
         get<LightInTag>()[k] += throughput(k) * light;
     }
 
-    auto ray(std::size_t k) -> Ray & { return get<RayTag>()[k]; }
+    auto rayOrigin(std::size_t k) -> float3 {
+        auto [x, y, z] = getPositions(*this);
+        return {x[k], y[k], z[k]};
+    }
 
-    auto hit(std::size_t k) -> SurfaceHitInfo & { return get<SurfaceHitTag>()[k]; }
+    auto rayDir(std::size_t k) -> float3 {
+        auto [x, y, z] = getDirectionSpans(*this);
+        return {x[k], y[k], z[k]};
+    }
 
     std::vector<std::size_t> activeList;
 };
@@ -106,62 +124,73 @@ constexpr int SamplesAA = 16000;
 
 // Generate camera rays for the pixel given in normalized frame buffer coordinates.
 auto generateCameraRays(TileInfo &tileInfo,
-                        PerspectiveCameraPtr cam,
+                        PerspectiveCamera const &cam,
                         NormalizedFrameBufferCoord const &coord,
                         RayBatch &raybatch) -> void {
     // Completely random sampling is known to be substandard, we should use a low-discrepancy
     // sequence of points, like multi-jittered sampling or Sobol sequences. We will address this in
     // Milestone 3 when we have generators for these type of sequences.
-    for (auto &ray : raybatch.get<RayTag>()) {
+    auto x = raybatch.get<tags::PositionX>();
+    for (std::size_t k = 0; k != x.size(); k++) {
         float phi1 = tileInfo.randomGen();
         float phi2 = tileInfo.randomGen();
-        ray = (*cam)(coord.x + phi1 * coord.dx, coord.y + phi2 * coord.dy);
+        auto ray = cam(coord.x + phi1 * coord.dx, coord.y + phi2 * coord.dy);
+        setPosition(raybatch, k, float3{ray.eye()[0], ray.eye()[1], ray.eye()[2]});
+        setDirection(raybatch, k, float3{ray.dir()[0], ray.dir()[1], ray.dir()[2]});
     }
 }
 
-auto randomSphere(PRNG &prng) -> V3 {
+auto randomSphere(PRNG &prng) -> float3 {
     // TODO: we can use identities to tidy this up.
     auto theta = 2.0f * cornelis::Pi * prng();
     auto phi = std::acos(2.0f * prng() - 1.0f);
 
-    return V3(cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta));
+    return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta));
 }
 
-auto intersect(Scene const &scene, RayBatch &raybatch) -> void {
-    std::vector<std::size_t> stillActive;
-    for (auto k : raybatch.activeList) {
-        SurfaceHitInfo hit{.t0 = INFINITY};
-        bool anyHit = false;
-        for (std::size_t i = 0; i < scene.spheres().size(); ++i) {
-            SurfaceHitInfo candidateHit;
-            if (scene.spheres().geometry(i).intersects(raybatch.ray(k), candidateHit)) {
-                anyHit = true;
-                if (candidateHit.t0 < hit.t0) {
-                    hit = candidateHit;
-                    hit.mat = &scene.spheres().material(i);
-                }
-            }
-        }
-        if (anyHit) {
-            stillActive.push_back(k);
-            raybatch.hit(k) = hit;
-        }
+auto intersect(SceneData &scene, RayBatch &raybatch, IntersectionData &intersections) -> void {
+    auto [Sx, Sy, Sz] = getPositions(scene.spheres);
+    auto radius = scene.spheres.get<tags::Radius>();
+    auto materialIds = scene.spheres.get<tags::MaterialId>();
+
+    for (decltype(Sx.size()) i = 0; i != Sx.size(); i++) {
+        intersectSphere(getPositions(raybatch),
+                        getDirectionSpans(raybatch),
+                        float3(Sx[i], Sy[i], Sz[i]),
+                        radius[i],
+                        materialIds[i],
+                        intersections,
+                        raybatch.activeList);
     }
-    raybatch.activeList = stillActive;
+
+    auto params = intersections.get<tags::RayParam0>();
+    // Fix up activeList.
+    decltype(RayBatch::activeList) newActiveList;
+    for (auto k : raybatch.activeList) {
+        if (params[k] < INFINITY)
+            newActiveList.push_back(k);
+    }
+    raybatch.activeList = newActiveList;
 }
 
-auto accumulateAndBounce(RayBatch &raybatch, PRNG &randomGen) -> void {
+auto accumulateAndBounce(SceneData &scene,
+                         RayBatch &raybatch,
+                         IntersectionData &intersections,
+                         PRNG &randomGen) -> void {
     std::vector<std::size_t> stillActive;
     for (auto k : raybatch.activeList) {
-        V3 const w_out = -raybatch.ray(k).dir();
+        float3 const w_out = -raybatch.rayDir(k);
 
-        auto const hit = raybatch.hit(k);
+        auto [Px, Py, Pz] = getPositions(intersections);
+        auto [Nx, Ny, Nz] = getNormalSpans(intersections);
+        auto materialIds = intersections.get<tags::MaterialId>();
 
+        auto const &mat = scene.materials[materialIds[k]];
         // TODO: We can chose a much better russian roulette factor.
         auto const prob = RussianRouletteFactor;
-        auto const P = hit.P;
-        auto const N = hit.N;
-        auto const L_e = hit.mat->emission(P);
+        auto const P = float3{Px[k], Py[k], Pz[k]};
+        auto const N = float3{Nx[k], Ny[k], Nz[k]};
+        auto const L_e = mat.emission(P);
 
         raybatch.accumulateLight(k, L_e);
 
@@ -170,18 +199,23 @@ auto accumulateAndBounce(RayBatch &raybatch, PRNG &randomGen) -> void {
             continue;
         }
 
-        BSDF const &bsdf = hit.mat->bsdf(P, N);
+        BSDF const &bsdf = mat.bsdf(P, N);
         // TODO: we can do much better here by importance sampling.
-        V3 w_in = randomHemisphere(randomGen, constructBasis(N));
+        float3 w_in = randomHemisphere(randomGen, constructBasis(N));
+        // float3 w_in = normalize(N + randomSphere(randomGen));
         // float pdf = bsdf.pdf(w_in);
         float pdf = randomHemispherePDF();
 
         // TODO: we should probably chose prob here based on the material at least.
         // Create new ray for this bounce.
-        raybatch.ray(k) = Ray(P + w_in * 0.00001f, w_in);
+        // raybatch.ray(k) = Ray(P + w_in * 0.00001f, w_in);
+        setPosition(raybatch, k, P + w_in * 0.00001f);
+        setDirection(raybatch, k, w_in);
         // Set light term scale to be accumulated.
-        raybatch.scaleThroughput(
-            k, bsdf(w_in, w_out) * abs(std::max(w_in.dot(N), 0.0f)) / (pdf * prob));
+        raybatch.scaleThroughput(k,
+                                 //   (RGB{P[0], P[1], P[2]} * 0.5f + RGB{0.5, 0.5, 0.5}) / Pi *
+                                 //       abs(dot(w_in, N)) / (pdf * prob));
+                                 bsdf(w_in, w_out) * abs(dot(w_in, N)) / (pdf * prob));
 
         stillActive.push_back(k);
     }
@@ -199,13 +233,15 @@ auto saveImage(RGBFrameBuffer const &fb) -> void {
 }
 
 struct RenderSession::State {
-    State(Scene const &sc, RenderOptions opts) : scene(sc), options(std::move(opts)) {}
+    State(SceneDescription const &sc, RenderOptions opts)
+        : sceneDescr(sc), scene(sceneDescr), options(std::move(opts)) {}
 
-    Scene const &scene;
+    SceneDescription sceneDescr;
+    SceneData scene;
     RenderOptions options;
 };
 
-RenderSession::RenderSession(Scene const &sc, RenderOptions options)
+RenderSession::RenderSession(SceneDescription const &sc, RenderOptions options)
     : me_{std::make_unique<State>(sc, std::move(options))} {}
 
 RenderSession::~RenderSession() {}
@@ -215,6 +251,10 @@ auto RenderSession::render() -> void {
     PRNG rootRng;
 
     puts("Starting render.");
+    printf("Scene:\n\tSpheres %3zu\n\tPlanes %3zu\n\tMaterials %3zu\n",
+           me_->scene.spheres.get<tags::PositionX>().size(),
+           me_->scene.planes.get<tags::PositionX>().size(),
+           me_->scene.materials.size());
 
     FrameTiling tiling(PixelRect(fb.width(), fb.height()), PixelRect{16, 16});
     // Set up PRNGs to start at different points in the period.
@@ -236,11 +276,15 @@ auto RenderSession::render() -> void {
                 NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
 
                 RayBatch raybatch(SamplesAA);
-                generateCameraRays(tileInfo, me_->scene.camera(), screenCoord, raybatch);
+                generateCameraRays(tileInfo, me_->scene.camera, screenCoord, raybatch);
+                IntersectionData intersections(SamplesAA);
 
                 while (raybatch.activeList.size() > 0) {
-                    intersect(me_->scene, raybatch);
-                    accumulateAndBounce(raybatch, tileInfo.randomGen);
+                    intersect(me_->scene, raybatch, intersections);
+                    // if (raybatch.activeList.size() > 0)
+                    //    printf("actives %zu\n", raybatch.activeList.size());
+                    accumulateAndBounce(me_->scene, raybatch, intersections, tileInfo.randomGen);
+                    intersections.reset();
                 }
 
                 RGB color = RGB::black();

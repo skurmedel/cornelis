@@ -20,6 +20,8 @@ add_library(corneliscore STATIC
     Objects.cpp
     Linalg.cpp
     SoA.cpp
+    SceneDescription.cpp
+    Geometry.cpp
 
     extern/stb_image_write.cpp
 )

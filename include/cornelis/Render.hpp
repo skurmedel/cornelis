@@ -3,12 +3,12 @@
 #include <memory>
 
 #include <cornelis/RenderOptions.hpp>
-#include <cornelis/Scene.hpp>
+#include <cornelis/SceneDescription.hpp>
 
 namespace cornelis {
 class RenderSession {
   public:
-    RenderSession(Scene const &, RenderOptions options);
+    RenderSession(SceneDescription const &, RenderOptions options);
     ~RenderSession();
 
     RenderSession(RenderSession &&) = default;

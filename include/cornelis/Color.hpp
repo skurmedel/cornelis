@@ -64,6 +64,8 @@ class RGB {
 
     friend auto toSRGB(RGB const &) -> SRGB;
 
+    auto operator<=>(RGB const &) const = default;
+
   private:
     float values_[3];
 };
