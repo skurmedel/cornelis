@@ -18,6 +18,8 @@ add_executable(cornelis_test_runner
     test_Math.cpp
     test_Linalg.cpp
     test_SoA.cpp
+    test_SceneDescription.cpp
+    test_Geometry.cpp
 )
 target_link_libraries(cornelis_test_runner PUBLIC corneliscore Catch2::Catch2WithMain)
 

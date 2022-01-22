@@ -1,14 +1,6 @@
 #include <cornelis/Color.hpp>
 namespace cornelis {
 
-auto RGB::operator+(RGB const &rgb) const noexcept -> RGB {
-    RGB result;
-    for (int i = 0; i < 3; i++) {
-        result(i) = this->operator()(i) + rgb(i);
-    }
-    return result;
-}
-
 auto RGB::operator+=(RGB const &rgb) noexcept -> RGB & {
     for (int i = 0; i < 3; i++) {
         this->operator()(i) += rgb(i);
@@ -16,34 +8,10 @@ auto RGB::operator+=(RGB const &rgb) noexcept -> RGB & {
     return *this;
 }
 
-auto RGB::operator-(RGB const &rgb) const noexcept -> RGB {
-    RGB result;
-    for (int i = 0; i < 3; i++) {
-        result(i) = this->operator()(i) - rgb(i);
-    }
-    return result;
-}
-
-auto RGB::operator*(float scalar) const noexcept -> RGB {
-    RGB result;
-    for (int i = 0; i < 3; i++) {
-        result(i) = this->operator()(i) * scalar;
-    }
-    return result;
-}
-
 auto RGB::operator/(float scalar) const noexcept -> RGB {
     RGB result;
     for (int i = 0; i < 3; i++) {
         result(i) = this->operator()(i) / scalar;
-    }
-    return result;
-}
-
-auto RGB::operator*(RGB const &other) const noexcept -> RGB {
-    RGB result;
-    for (int i = 0; i < 3; i++) {
-        result(i) = this->operator()(i) * other(i);
     }
     return result;
 }

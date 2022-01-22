@@ -28,7 +28,7 @@ struct BSDF {
      *  - energy conserving, i.e the integral of this function over the sphere is at most 1.
      *  - np negative values
      */
-    virtual auto operator()(V3 const &wi, V3 const &wo) const noexcept -> RGB = 0;
+    virtual auto operator()(float3 const &wi, float3 const &wo) const noexcept -> RGB = 0;
 
     /**
      * Query the probability density function for this BSDF. This function should integrate to 1
@@ -36,7 +36,7 @@ struct BSDF {
      *
      * Returns the probability that light is scattered in the given direction.
      */
-    virtual auto pdf(V3 const &wi) const noexcept -> float = 0;
+    virtual auto pdf(float3 const &wi) const noexcept -> float = 0;
 
     // TODO: support refracting materials.
 };
@@ -45,10 +45,10 @@ class LambertBSDF : public BSDF {
   public:
     LambertBSDF(RGB albedo) : albedo_(albedo) {}
 
-    auto operator()(V3 const &wi, V3 const &wo) const noexcept -> RGB override {
+    auto operator()(float3 const &wi, float3 const &wo) const noexcept -> RGB override {
         return albedo_ / cornelis::Pi;
     }
-    auto pdf(V3 const &wi) const noexcept -> float override {
+    auto pdf(float3 const &wi) const noexcept -> float override {
         // This is the area of a unit sphere and represents a completely uniform distribution.
         return 1.0f / (4.0f * cornelis::Pi);
     }
@@ -61,9 +61,9 @@ class StandardMaterial {
   public:
     StandardMaterial(RGB albedo, RGB emission) : emission_(emission), bsdf_(albedo) {}
 
-    auto bsdf(V3 const &P, V3 const &N) const noexcept -> BSDF const & { return bsdf_; }
+    auto bsdf(float3 const &P, float3 const &N) const noexcept -> BSDF const & { return bsdf_; }
 
-    auto emission(V3 const &P) const noexcept -> RGB { return emission_; }
+    auto emission(float3 const &P) const noexcept -> RGB { return emission_; }
 
   private:
     RGB emission_;
