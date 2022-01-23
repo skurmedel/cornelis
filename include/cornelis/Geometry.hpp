@@ -38,6 +38,8 @@ auto intersectPlane(SoATuple3f rayOrigins,
                      SoATuple3f rayDirs,
                      float3 planeNormal,
                      float3 planePoint,
+                     float width,
+                     float height,
                      std::size_t materialId,
                      IntersectionData &data,
                      std::vector<std::size_t> const &activeRayIds) -> void;

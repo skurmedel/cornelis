@@ -76,6 +76,14 @@ struct NormalZ {
     using element_type = float;
 };
 
+struct WidthF {
+    using element_type = float;
+};
+
+struct HeightF {
+    using element_type = float;
+};
+
 struct RayParam0 {
     using element_type = float;
 };

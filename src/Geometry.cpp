@@ -111,6 +111,8 @@ auto intersectPlane(SoATuple3f rayOrigins,
                     SoATuple3f rayDirs,
                     float3 planeNormal,
                     float3 planePoint,
+                    float width,
+                    float height,
                     std::size_t materialId,
                     IntersectionData &data,
                     std::vector<std::size_t> const &activeRayIds) -> void {
@@ -156,12 +158,20 @@ auto intersectPlane(SoATuple3f rayOrigins,
             float t = 0.0f;
             if (!isAlmostZero(B))
                 t = A / B;
+            if (t < 0.0f) { // TODO: test this.
+                intersected[k] = false;
+                continue;
+            }
+            float3 sP = rayT(rayOrigins, rayDirs, k, t);
+            Basis b = constructBasis(planeNormal);
+            if (abs(dot(sP - planePoint, b.T)) * 2.0f > width ||
+                abs(dot(sP - planePoint, b.B)) * 2.0f > height)
+                continue; // TODO: test this.*/
             if (params[k] > t) {
                 params[k] = t;
                 intersected[k] = true;
-                float3 sP = rayT(rayOrigins, rayDirs, k, t);
                 setPosition(data, k, sP);
-                setNormal(data, k, normalize(planeNormal));
+                setNormal(data, k, planeNormal);
                 materialIds[k] = materialId;
             }
         }

@@ -34,6 +34,7 @@ struct SphereDescription : public ObjectDescription {
 struct PlaneDescription : public ObjectDescription {
     V3 normal{0, 1, 0};
     V3 point{0, 0, 0};
+    V3 extents{1000.f, 1000.f, 0.0f};
 
     auto operator==(PlaneDescription const &) const -> bool = default;
 };

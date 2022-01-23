@@ -16,9 +16,7 @@ using Ray = nanovdb::Ray<float>;
 // TODO: find a number for this based on brain power and not guesswork.
 inline constexpr float RayEpsilon = 0.00005f;
 
-inline auto isAlmostZero(float v) -> bool {
-    return abs(v) < RayEpsilon;
-}
+inline auto isAlmostZero(float v) -> bool { return abs(v) < RayEpsilon; }
 
 // On C++20 we could use <numbers>
 constexpr float Pi = 3.14159265359f;
@@ -117,7 +115,7 @@ struct float3 {
 
     float3() = default;
 
-    float3(float k) : values{k, k, k} {}
+    explicit float3(float k) : values{k, k, k} {}
     float3(float x1, float x2, float x3) : values{x1, x2, x3} {}
 
     auto operator==(float3 const &) const noexcept -> bool = default;
@@ -355,8 +353,26 @@ inline auto cross(float3 v1, float3 v2) -> float3 {
 inline auto normalize(float3 v1) -> float3 {
     auto len = sqrtf(mag2(v1));
     if (len == 0) // TODO: better test omg.
-        return {0};
+        return float3{0};
     auto s = 1.0f / len;
     return v1 * float3{s};
 }
+
+struct Basis {
+    float3 N;
+    float3 T;
+    float3 B;
+};
+
+inline auto constructBasis(float3 const &N) -> Basis {
+    // Invent a tangent.
+    float3 helper(0, 1, 0);
+    if (abs(N[1]) > 0.95)
+        helper = float3(0, 0, 1);
+    Basis base{.N = N};
+    base.T = normalize(cross(helper, N));
+    base.B = cross(base.T, N);
+    return base;
+}
+
 } // namespace cornelis

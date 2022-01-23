@@ -2,25 +2,6 @@
 #include <cornelis/Scene.hpp>
 
 namespace cornelis {
-struct Scene::State {
-    State() : activeCamera{std::make_shared<PerspectiveCamera>()} {}
-
-    PerspectiveCameraPtr activeCamera;
-    SurfaceBag<SphereSurface> spheres;
-};
-
-Scene::Scene() : me_(std::make_unique<State>()) {}
-Scene::~Scene() {}
-
-auto Scene::setCamera(PerspectiveCameraPtr camera) -> void {
-    CORNELIS_EXPECTS(camera.get() != nullptr, "must set a proper camera.");
-    me_->activeCamera = camera;
-}
-auto Scene::camera() const noexcept -> PerspectiveCameraPtr { return me_->activeCamera; }
-
-auto Scene::spheres() noexcept -> SurfaceBag<SphereSurface> & { return me_->spheres; }
-auto Scene::spheres() const noexcept -> SurfaceBag<SphereSurface> const & { return me_->spheres; }
-
 SphereData::SphereData(span<const SphereDescription> descriptions)
     : SoAObject(descriptions.size()) {
     auto [x, y, z] = getPositions(*this);
@@ -39,6 +20,8 @@ SphereData::SphereData(span<const SphereDescription> descriptions)
 PlaneData::PlaneData(span<const PlaneDescription> descriptions) : SoAObject(descriptions.size()) {
     auto [x, y, z] = getPositions(*this);
     auto [Nx, Ny, Nz] = getNormalSpans(*this);
+    auto widths = get<tags::WidthF>();
+    auto heights = get<tags::HeightF>();
     auto materialId = get<tags::MaterialId>();
     for (std::size_t i = 0; i != descriptions.size(); i++) {
         auto const &descr = descriptions[i];
@@ -48,6 +31,8 @@ PlaneData::PlaneData(span<const PlaneDescription> descriptions) : SoAObject(desc
         Nx[i] = descr.normal[0];
         Ny[i] = descr.normal[1];
         Nz[i] = descr.normal[2];
+        widths[i] = descr.extents[0];
+        heights[i] = descr.extents[1];
         materialId[i] = descr.material.value_or(0);
     }
 }

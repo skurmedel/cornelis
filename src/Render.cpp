@@ -33,23 +33,6 @@ struct NormalizedFrameBufferCoord {
 
 constexpr float RussianRouletteFactor = 0.75;
 
-struct Basis {
-    float3 N;
-    float3 T;
-    float3 B;
-};
-
-auto constructBasis(float3 const &N) -> Basis {
-    // Invent a tangent.
-    float3 helper(0, 1, 0);
-    if (abs(N[1]) > 0.95)
-        helper = float3(0, 0, 1);
-    Basis base{.N = N};
-    base.T = normalize(cross(helper, N));
-    base.B = cross(base.T, N);
-    return base;
-}
-
 auto randomHemisphere(PRNG &prng) -> float3 {
     float x1 = prng();
     float x2 = prng();
@@ -77,10 +60,6 @@ struct PathThroughputTag {
 
 struct LightInTag {
     using element_type = RGB;
-};
-
-struct SurfaceHitTag {
-    using element_type = SurfaceHitInfo;
 };
 
 struct RayBatch : public SoAObject<tags::PositionX,
@@ -120,7 +99,7 @@ struct RayBatch : public SoAObject<tags::PositionX,
     std::vector<std::size_t> activeList;
 };
 
-constexpr int SamplesAA = 100000;
+constexpr int SamplesAA = 16000;
 
 // Generate camera rays for the pixel given in normalized frame buffer coordinates.
 auto generateCameraRays(TileInfo &tileInfo,
@@ -161,6 +140,23 @@ auto intersect(SceneData &scene, RayBatch &raybatch, IntersectionData &intersect
                         materialIds[i],
                         intersections,
                         raybatch.activeList);
+    }
+
+    materialIds = scene.planes.get<tags::MaterialId>();
+    auto width = scene.planes.get<tags::WidthF>();
+    auto height = scene.planes.get<tags::HeightF>();
+    auto [Px, Py, Pz] = getPositions(scene.planes);
+    auto [PNx, PNy, PNz] = getNormalSpans(scene.planes);
+    for (decltype(Px.size()) i = 0; i != Px.size(); i++) {
+        intersectPlane(getPositions(raybatch),
+                       getDirectionSpans(raybatch),
+                       float3(PNx[i], PNy[i], PNz[i]),
+                       float3(Px[i], Py[i], Pz[i]),
+                       width[i],
+                       height[i],
+                       materialIds[i],
+                       intersections,
+                       raybatch.activeList);
     }
 
     auto params = intersections.get<tags::RayParam0>();
@@ -209,7 +205,7 @@ auto accumulateAndBounce(SceneData &scene,
         // TODO: we should probably chose prob here based on the material at least.
         // Create new ray for this bounce.
         // raybatch.ray(k) = Ray(P + w_in * 0.00001f, w_in);
-        setPosition(raybatch, k, P + w_in * 0.00001f);
+        setPosition(raybatch, k, P + w_in * 0.0001f);
         setDirection(raybatch, k, w_in);
         // Set light term scale to be accumulated.
         raybatch.scaleThroughput(k,
@@ -247,7 +243,7 @@ RenderSession::RenderSession(SceneDescription const &sc, RenderOptions options)
 RenderSession::~RenderSession() {}
 
 auto RenderSession::render() -> void {
-    RGBFrameBuffer fb(PixelRect(512, 256));
+    RGBFrameBuffer fb(PixelRect(512, 512));
     PRNG rootRng;
 
     puts("Starting render.");

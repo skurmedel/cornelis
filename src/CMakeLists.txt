@@ -17,7 +17,6 @@ add_library(corneliscore STATIC
     Render.cpp
     Random.cpp
     Tiles.cpp
-    Objects.cpp
     Linalg.cpp
     SoA.cpp
     SceneDescription.cpp

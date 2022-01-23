@@ -3,28 +3,71 @@
 
 using namespace cornelis;
 
-int main(int argc, char *argv[]) {
+auto cornellBox() -> SceneDescription {
+    float sideLen = 555.0f;
+    float sideLenHalf = 550.0f / 2.0f;
+
     SceneDescription sceneDescr;
-    sceneDescr.setCamera(
-        PerspectiveCameraDescription{.origin = V3(0, 2, -5), .lookAt = V3(0), .aspect = 0.5f});
+    sceneDescr.setCamera(PerspectiveCameraDescription{.origin = V3(0, sideLenHalf, -1100),
+                                                      .lookAt = V3(0, sideLenHalf, 0),
+                                                      .aspect = 1.f,
+                                                      .horizontalFov = 0.7f});
 
-    auto mat1 = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB::red()});
-    auto mat2 = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB(0.9, 0.9, 0.9)});
-    auto mat3 = sceneDescr.addMaterial(
-        MaterialDescription{.albedo = RGB::black(), .emissive = RGB(1.0, 1.0, 1.0) * 50.0f});
+    auto red = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB{.65f, .05f, .05f}});
+    auto white = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB{.73f, .73f, .73f}});
+    auto green = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB{.12, .45f, .15f}});
 
-    SphereDescription sphere1{.center = V3(0, 0.5f, 0), .radius = 1.0f};
-    sphere1.material = mat1;
-    SphereDescription sphere2{.center = V3(0, -100.0f, 0), .radius = 100.0f};
-    sphere2.material = mat2;
-    // A light.
-    SphereDescription sphere3{.center = V3(50, 50, -50), .radius = 7.0f};
-    sphere3.material = mat3;
+    auto light = sceneDescr.addMaterial(
+        MaterialDescription{.albedo = RGB::black(), .emissive = RGB{15, 15, 15}});
 
-    sceneDescr.addSphere(sphere1);
+    PlaneDescription leftWall{.normal = V3(1.0f, 0, 0),
+                              .point = V3(-sideLenHalf, sideLenHalf, 0),
+                              .extents = V3(sideLen, sideLen, 0)};
+    leftWall.material = green;
+
+    PlaneDescription rightWall{.normal = V3(-1.0f, 0, 0),
+                               .point = V3(sideLenHalf, sideLenHalf, 0),
+                               .extents = V3(sideLen, sideLen, 0)};
+    rightWall.material = red;
+
+    PlaneDescription roof{
+        .normal = V3(0, -1.0f, 0), .point = V3(0, sideLen, 0), .extents = V3(sideLen, sideLen, 0)};
+    roof.material = white;
+
+    PlaneDescription floor{
+        .normal = V3(0, 1.0f, 0), .point = V3(0, 0, 0), .extents = V3(sideLen, sideLen, 0)};
+    floor.material = white;
+
+    PlaneDescription backWall{.normal = V3(0, 0, -1.0f),
+                              .point = V3(0, sideLenHalf, sideLenHalf),
+                              .extents = V3(sideLen, sideLen, 0)};
+    backWall.material = white;
+
+    sceneDescr.addPlane(leftWall);
+    sceneDescr.addPlane(rightWall);
+    sceneDescr.addPlane(roof);
+    sceneDescr.addPlane(floor);
+    sceneDescr.addPlane(backWall);
+
+    SphereDescription lightSphere{.center = V3(0, sideLen - 60.0f, 0), .radius = 60.0f};
+    lightSphere.material = light;
+
+    SphereDescription sphere2{.center = V3(0, 50.0f, 0), .radius = 50.0f};
+    sphere2.material = red;
+    SphereDescription sphere3{.center = V3(-160, 100.0f, 0), .radius = 100.0f};
+    sphere3.material = white;
+    SphereDescription sphere4{.center = V3(-160, 125.0f, 200), .radius = 125.0f};
+    sphere4.material = white;
+
+    sceneDescr.addSphere(lightSphere);
     sceneDescr.addSphere(sphere2);
     sceneDescr.addSphere(sphere3);
+    sceneDescr.addSphere(sphere4);
 
-    RenderSession session(sceneDescr, RenderOptions{});
+    return sceneDescr;
+}
+
+int main(int argc, char *argv[]) {
+    RenderSession session(cornellBox(), RenderOptions{});
     session.render();
 }

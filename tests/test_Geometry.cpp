@@ -133,6 +133,8 @@ TEST_CASE("intersectPlane") {
     std::size_t materialId = 63;
     float3 planeN = normalize(float3{1, 0, -1});
     float3 planeP{-1.0, 0, 0};
+    float planeWidth = 100.0f;
+    float planeHeight = 50.0f;
 
     IntersectionData intersections(rx.size());
     auto params = intersections.get<tags::RayParam0>();
@@ -197,6 +199,8 @@ TEST_CASE("intersectPlane") {
                    getDirectionSpans(rays),
                    planeN,
                    planeP,
+                   planeWidth,
+                   planeHeight,
                    materialId,
                    intersections,
                    activeRayIds);
