@@ -68,6 +68,6 @@ auto cornellBox() -> SceneDescription {
 }
 
 int main(int argc, char *argv[]) {
-    RenderSession session(cornellBox(), RenderOptions{});
+    RenderSession session(cornellBox(), RenderOptions{.samplesAA = 1024});
     session.render();
 }

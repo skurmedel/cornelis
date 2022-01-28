@@ -99,8 +99,6 @@ struct RayBatch : public SoAObject<tags::PositionX,
     std::vector<std::size_t> activeList;
 };
 
-constexpr int SamplesAA = 16000;
-
 // Generate camera rays for the pixel given in normalized frame buffer coordinates.
 auto generateCameraRays(TileInfo &tileInfo,
                         PerspectiveCamera const &cam,
@@ -246,7 +244,13 @@ auto RenderSession::render() -> void {
     RGBFrameBuffer fb(PixelRect(512, 512));
     PRNG rootRng;
 
+    if (me_->options.samplesAA <= 0) { // TODO: create some validation routine.
+        printf("AA Samples must be > 0 (not %d).\n", me_->options.samplesAA);
+        return;
+    }
+
     puts("Starting render.");
+    printf("Options:\n\tAA Samples %d\n", me_->options.samplesAA);
     printf("Scene:\n\tSpheres %3zu\n\tPlanes %3zu\n\tMaterials %3zu\n",
            me_->scene.spheres.get<tags::PositionX>().size(),
            me_->scene.planes.get<tags::PositionX>().size(),
@@ -271,9 +275,9 @@ auto RenderSession::render() -> void {
                 // i, j);
                 NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
 
-                RayBatch raybatch(SamplesAA);
+                RayBatch raybatch(me_->options.samplesAA);
                 generateCameraRays(tileInfo, me_->scene.camera, screenCoord, raybatch);
-                IntersectionData intersections(SamplesAA);
+                IntersectionData intersections(me_->options.samplesAA);
 
                 while (raybatch.activeList.size() > 0) {
                     intersect(me_->scene, raybatch, intersections);
@@ -288,7 +292,7 @@ auto RenderSession::render() -> void {
                     color += term;
                 }
                 // Box-filter 0.5f radius
-                color = color * (1.0f / SamplesAA);
+                color = color * (1.0f / me_->options.samplesAA);
 
                 fb(i, j) = color;
             }
