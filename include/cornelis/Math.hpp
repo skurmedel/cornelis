@@ -3,6 +3,7 @@
 #include <cornelis/Expects.hpp>
 #include <cornelis/NanoVDBMath.hpp>
 
+#include <concepts>
 #include <ostream>
 #include <tuple>
 #include <type_traits>
@@ -20,6 +21,127 @@ inline auto isAlmostZero(float v) -> bool { return abs(v) < RayEpsilon; }
 
 // On C++20 we could use <numbers>
 constexpr float Pi = 3.14159265359f;
+
+/**
+ * This concept is named after the algebraic structure called a product ring,
+ * and represents the tuples of the Cartesian product of N rings.
+ *
+ * We only allow one kind of ring R, be it rational (floating point) or integers.
+ *
+ * It has component-wise addition and multiplication. If R is rational, we can also view it as a
+ * vector although the component-wise multiplication has bad properties in a vector space.
+ *
+ * All this sounds very fancy, but as a programmer this is mostly a way to let us create tuples
+ * with some common operations that are mathematically sound from this point of view.
+ *
+ * We need tuples of integers for sRGB colors and pixel coordinates. And we need tuples of
+ * floating point numbers for pure spectral colors, 3D vectors and so forth.
+ */
+template <typename P>
+concept product_ring = (
+    requires {
+        std::common_with<decltype(P::N), std::size_t>;
+        typename P::element_type;
+        std::integral<typename P::element_type> || std::floating_point<typename P::element_type>;
+    } &&
+    requires(P p, std::size_t i, typename P::element_type s) {
+        { p.values[i] } -> std::same_as<typename P::element_type &>;
+        {p(i) + s};
+        {p(i) - s};
+        {p(i) * s};
+    } &&
+    requires(P const &pc, std::size_t i) {
+        { pc.values[i] } -> std::same_as<typename P::element_type const &>;
+    } &&
+    std::default_initializable<P>);
+
+/**
+ * Componentwise addition on a product_ring.
+ */
+template <product_ring P>
+inline auto operator+(P const &a, P const &b) noexcept -> P {
+    P res;
+    for (std::size_t i = 0; i < P::N; i++) {
+        res(i) = a(i) + b(i);
+    }
+    return res;
+}
+
+/**
+ * Componentwise subtraction on a product_ring.
+ */
+template <product_ring P>
+inline auto operator-(P const &a, P const &b) noexcept -> P {
+    P res;
+    for (std::size_t i = 0; i < P::N; i++) {
+        res(i) = a(i) - b(i);
+    }
+    return res;
+}
+/**
+ * Componentwise subtraction on a product_ring.
+ */
+template <product_ring P>
+inline auto operator-(P const &a) noexcept -> P {
+    P res;
+    for (std::size_t i = 0; i < P::N; i++) {
+        res(i) = -a(i);
+    }
+    return res;
+}
+
+/**
+ * Componentwise multiplication on a product_ring.
+ */
+template <product_ring P>
+inline auto operator*(P const &a, P const &b) noexcept -> P {
+    P res;
+    for (std::size_t i = 0; i < P::N; i++) {
+        res(i) = a(i) * b(i);
+    }
+    return res;
+}
+
+/**
+ * Componentwise right-multiplication with element type promoted to full tuple.
+ */
+template <product_ring P>
+inline auto operator*(P const &a, typename P::element_type const &b) noexcept -> P {
+    P res;
+    for (std::size_t i = 0; i < P::N; i++) {
+        res(i) = a(i) * b;
+    }
+    return res;
+}
+/**
+ * Componentwise left-multiplication with element type promoted to full tuple.
+ */
+template <product_ring P>
+inline auto operator*(typename P::element_type const &a, P const &b) noexcept -> P {
+    P res;
+    for (std::size_t i = 0; i < P::N; i++) {
+        res[i] = a * b[i];
+    }
+    return res;
+}
+
+template <std::size_t idx, product_ring P>
+inline auto get(P &p) -> std::tuple_element_t<idx, P> & {
+    return p(idx);
+}
+template <std::size_t idx, product_ring P>
+inline auto get(P const &p) -> std::tuple_element_t<idx, P> const & {
+    return p(idx);
+}
+
+template <std::size_t idx, product_ring P>
+inline auto get(P &&p) -> std::tuple_element_t<idx, P> && {
+    return std::move(p(idx));
+}
+template <std::size_t idx, product_ring P>
+inline auto get(P const &&p) -> std::tuple_element_t<idx, P> const && {
+    return std::move(p(idx));
+}
 
 /**
  * Represents a point in some 2D space (doesn't have to be a vector space).
@@ -111,85 +233,25 @@ inline auto operator<<(std::ostream &s, PixelRect const &rect) -> std::ostream &
 struct Transform {};
 
 struct float3 {
-    alignas(16) float values[3];
+    using element_type = float;
+    static const std::size_t N = 3;
 
     float3() = default;
+    explicit float3(float a) : values{a, a, a} {}
+    float3(float x, float y, float z) : values{x, y, z} {}
 
-    explicit float3(float k) : values{k, k, k} {}
-    float3(float x1, float x2, float x3) : values{x1, x2, x3} {}
+    auto operator()(std::size_t i) -> element_type & { return values[i]; }
+    auto operator()(std::size_t i) const -> element_type const & { return values[i]; }
+    auto operator==(float3 const &) const -> bool = default;
 
-    auto operator==(float3 const &) const noexcept -> bool = default;
-
-    auto operator[](std::size_t k) noexcept -> float & { return values[k]; }
-    auto operator[](std::size_t k) const noexcept -> float const & { return values[k]; }
-
-    template <std::size_t idx>
-    auto get() -> std::tuple_element_t<idx, float3> & {
-        return values[idx];
-    }
-
-    template <std::size_t idx>
-    auto get() const -> std::tuple_element_t<idx, float3> const & {
-        return values[idx];
-    }
-
-    /**
-     * Componentwise addition.
-     */
-    auto operator+(float3 const &other) const noexcept -> float3 {
-        float3 res;
-        for (auto i = 0; i < 3; i++) {
-            res.values[i] = values[i] + other[i];
-        }
-        return res;
-    }
-
-    /**
-     * Componentwise subtraction.
-     */
-    auto operator-(float3 const &other) const noexcept -> float3 {
-        float3 res;
-        for (auto i = 0; i < 3; i++) {
-            res.values[i] = values[i] - other[i];
-        }
-        return res;
-    }
-
-    /**
-     * Componentwise negation.
-     */
-    auto operator-() const noexcept -> float3 {
-        float3 res;
-        for (auto i = 0; i < 3; i++) {
-            res.values[i] = -values[i];
-        }
-        return res;
-    }
-
-    /**
-     * Componentwise multiplication.
-     */
-    auto operator*(float3 const &other) const noexcept -> float3 {
-        float3 res;
-        for (auto i = 0; i < 3; i++) {
-            res.values[i] = values[i] * other[i];
-        }
-        return res;
-    }
-
-    auto operator*(float other) const noexcept -> float3 {
-        float3 res;
-        for (auto i = 0; i < 3; i++) {
-            res.values[i] = values[i] * other;
-        }
-        return res;
-    }
+    element_type values[N];
 };
+static_assert(product_ring<float3>, "float3 should conform to this standard.");
 
 /**
  * Treats two float3 objects as vectors and computes the dot product.
  */
-inline auto dot(float3 a, float3 b) -> float { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+inline auto dot(float3 a, float3 b) -> float { return a(0) * b(0) + a(1) * b(1) + a(2) * b(2); }
 
 /**
  * Treats a float3 object as a vector and computes the magnitude raised to two, i.e the unsquared
@@ -314,6 +376,14 @@ static_assert(std::is_trivial_v<float4x4>, "float4x4 should be trivial.");
 
 // Specializations for structured binding support.
 namespace std {
+template <cornelis::product_ring P>
+struct tuple_size<P> : integral_constant<size_t, P::N> {};
+
+template <typename P, std::size_t k>
+requires(cornelis::product_ring<P>) struct tuple_element<k, P> {
+    using type = typename P::element_type;
+};
+
 template <typename T>
 struct tuple_size<cornelis::P2<T>> : integral_constant<size_t, 2> {};
 
@@ -324,22 +394,6 @@ struct tuple_element<0, cornelis::P2<T>> {
 template <typename T>
 struct tuple_element<1, cornelis::P2<T>> {
     using type = T;
-};
-
-template <>
-struct tuple_size<cornelis::float3> : integral_constant<size_t, 3> {};
-
-template <>
-struct tuple_element<0, cornelis::float3> {
-    using type = float;
-};
-template <>
-struct tuple_element<1, cornelis::float3> {
-    using type = float;
-};
-template <>
-struct tuple_element<2, cornelis::float3> {
-    using type = float;
 };
 } // namespace std
 
@@ -367,7 +421,7 @@ struct Basis {
 inline auto constructBasis(float3 const &N) -> Basis {
     // Invent a tangent.
     float3 helper(0, 1, 0);
-    if (abs(N[1]) > 0.95)
+    if (abs(N(1)) > 0.95)
         helper = float3(0, 0, 1);
     Basis base{.N = N};
     base.T = normalize(cross(helper, N));

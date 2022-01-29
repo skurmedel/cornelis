@@ -45,7 +45,7 @@ auto randomHemisphere(PRNG &prng) -> float3 {
 
 auto randomHemisphere(PRNG &prng, Basis const &base) -> float3 {
     float3 v = randomHemisphere(prng);
-    return base.B * v[0] + base.T * v[1] + base.N * v[2];
+    return base.B * v(0) + base.T * v(1) + base.N * v(2);
 }
 
 constexpr auto randomHemispherePDF() -> float { return 1.0f / (2.0f * Pi); }

@@ -212,9 +212,9 @@ TEST_CASE("intersectPlane") {
     CHECK_THAT(y[0], Catch::Matchers::WithinAbs(0, 0.001f));
     CHECK_THAT(z[0], Catch::Matchers::WithinAbs(-0.5f, 0.001f));
 
-    CHECK_THAT(Nx[0], Catch::Matchers::WithinAbs(planeN[0], 0.001f));
-    CHECK_THAT(Ny[0], Catch::Matchers::WithinAbs(planeN[1], 0.001f));
-    CHECK_THAT(Nz[0], Catch::Matchers::WithinAbs(planeN[2], 0.001f));
+    CHECK_THAT(Nx[0], Catch::Matchers::WithinAbs(planeN(0), 0.001f));
+    CHECK_THAT(Ny[0], Catch::Matchers::WithinAbs(planeN(1), 0.001f));
+    CHECK_THAT(Nz[0], Catch::Matchers::WithinAbs(planeN(2), 0.001f));
 
     // CHECK((Nx[0] == -0.94491 && Ny[0] == 0 && Nz[0] == -0.32731));
     CHECK_THAT(params[0], Catch::Matchers::WithinAbs(2.5f, 0.001f));
@@ -222,9 +222,9 @@ TEST_CASE("intersectPlane") {
 
     CHECK(intersected[1] == true);
     CHECK((x[1] == -1.0f && y[1] == 0 && z[1] == 0));
-    CHECK_THAT(Nx[1], Catch::Matchers::WithinAbs(planeN[0], 0.001f));
-    CHECK_THAT(Ny[1], Catch::Matchers::WithinAbs(planeN[1], 0.001f));
-    CHECK_THAT(Nz[1], Catch::Matchers::WithinAbs(planeN[2], 0.001f));
+    CHECK_THAT(Nx[1], Catch::Matchers::WithinAbs(planeN(0), 0.001f));
+    CHECK_THAT(Ny[1], Catch::Matchers::WithinAbs(planeN(1), 0.001f));
+    CHECK_THAT(Nz[1], Catch::Matchers::WithinAbs(planeN(2), 0.001f));
     CHECK(params[1] == 0.0f);
     CHECK(materialIds[1] == materialId);
 

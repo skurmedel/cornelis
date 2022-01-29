@@ -6,6 +6,26 @@
 
 using namespace cornelis;
 
+// We test all these with float3, which is the prototypical implemnentor.
+TEST_CASE("product_ring: float3: operator+") {
+    float3 a{1.0, 2.0, 3.0};
+    CHECK(a + a == float3{2.0, 4.0, 6.0});
+    CHECK(a + (-a) == float3{0});
+}
+
+TEST_CASE("product_ring: float3: operator-") {
+    float3 a{1.0, 2.0, 3.0};
+    CHECK(a - a == float3{0});
+    CHECK(a - (-a) == float3{2.0, 4.0, 6.0});
+}
+
+TEST_CASE("product_ring: float3: operator*") {
+    float3 a{1.0, 2.0, 3.0};
+    CHECK(a * a == float3{1.0, 4.0, 9.0});
+
+    CHECK(a * 2.0f == float3{2.0, 4.0, 6.0});
+}
+
 TEST_CASE("PixelRect: default constructor") {
     PixelRect rect;
     CHECK(rect.width() == 1);
@@ -64,25 +84,6 @@ TEST_CASE("float4: operator*") {
     float4 c = a * float4::init(0.5, -0.5, 2.0, 2.0);
 
     CHECK(c == float4::init(0.5, -1.0, 6.0, 8.0));
-}
-
-TEST_CASE("float3: operator+") {
-    float3 a{1.0, 2.0, 3.0};
-    CHECK(a + a == float3{2.0, 4.0, 6.0});
-    CHECK(a + (-a) == float3{0});
-}
-
-TEST_CASE("float3: operator-") {
-    float3 a{1.0, 2.0, 3.0};
-    CHECK(a - a == float3{0});
-    CHECK(a - (-a) == float3{2.0, 4.0, 6.0});
-}
-
-TEST_CASE("float3: operator*") {
-    float3 a{1.0, 2.0, 3.0};
-    CHECK(a * a == float3{1.0, 4.0, 9.0});
-
-    CHECK(a * 2.0f == float3{2.0, 4.0, 6.0});
 }
 
 TEST_CASE("dot float3") {
