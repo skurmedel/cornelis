@@ -46,13 +46,13 @@ concept product_ring = (
         std::integral<typename P::element_type> || std::floating_point<typename P::element_type>;
     } &&
     requires(P p, std::size_t i, typename P::element_type s) {
-        { p.values[i] } -> std::same_as<typename P::element_type &>;
+        { p(i) } -> std::same_as<typename P::element_type &>;
         {p(i) + s};
         {p(i) - s};
         {p(i) * s};
     } &&
     requires(P const &pc, std::size_t i) {
-        { pc.values[i] } -> std::same_as<typename P::element_type const &>;
+        { pc(i) } -> std::same_as<typename P::element_type const &>;
     } &&
     std::default_initializable<P>);
 
