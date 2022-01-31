@@ -7,6 +7,7 @@
 #include <ostream>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 namespace cornelis {
 using V3 = nanovdb::Vec3<float>;
@@ -143,22 +144,39 @@ inline auto get(P const &&p) -> std::tuple_element_t<idx, P> const && {
     return std::move(p(idx));
 }
 
-/**
- * Represents a point in some 2D space (doesn't have to be a vector space).
- */
-struct float2 {
-    using element_type = float;
-    static constexpr std::size_t N = 2;
+template <typename From, typename To>
+concept implicit_convertible = requires {
+    To(std::declval<From>());
+};
 
-    float2() : values{0} {}
-    float2(element_type x, element_type y) : values{x, y} {}
+template <std::size_t NumElements>
+struct floatN {
+    using element_type = float;
+    inline static const std::size_t N = NumElements;
+
+    floatN() = default;
+    explicit floatN(float a) : values{a} {}
+    floatN(implicit_convertible<float> auto ... args) requires
+        std::bool_constant<sizeof...(args) == NumElements>::value : values{static_cast<float>(args)...} {}
+
+    floatN(floatN<N> const &) = default;
+    floatN(floatN<N> &&) = default;
+    auto operator=(floatN<N> &) -> floatN<N> & = default;
+    auto operator=(floatN<N> &&) -> floatN<N> & = default;
 
     auto operator()(std::size_t i) -> float & { return values[i]; }
     auto operator()(std::size_t i) const -> float const & { return values[i]; }
 
+    auto operator==(floatN<N> const &) const -> bool = default;
+
     element_type values[N];
 };
-static_assert(product_ring<float2>, "float2 should conform to this standard.");
+
+using float2 = floatN<2>;
+static_assert(product_ring<float2>);
+
+using float3 = floatN<3>;
+static_assert(product_ring<float3>);
 
 // TODO: Make this into a product_ring
 struct PixelCoord {
@@ -225,22 +243,6 @@ inline auto operator<<(std::ostream &s, PixelRect const &rect) -> std::ostream &
 
 // TODO: make me complete.
 struct Transform {};
-
-struct float3 {
-    using element_type = float;
-    static const std::size_t N = 3;
-
-    float3() = default;
-    explicit float3(float a) : values{a, a, a} {}
-    float3(float x, float y, float z) : values{x, y, z} {}
-
-    auto operator()(std::size_t i) -> element_type & { return values[i]; }
-    auto operator()(std::size_t i) const -> element_type const & { return values[i]; }
-    auto operator==(float3 const &) const -> bool = default;
-
-    element_type values[N];
-};
-static_assert(product_ring<float3>, "float3 should conform to this standard.");
 
 /**
  * Treats two float3 objects as vectors and computes the dot product.
@@ -366,9 +368,9 @@ struct Basis {
 
 inline auto constructBasis(float3 const &N) -> Basis {
     // Invent a tangent.
-    float3 helper(0, 1, 0);
+    float3 helper(0.0f, 1.0f, 0.0f);
     if (abs(N(1)) > 0.95)
-        helper = float3(0, 0, 1);
+        helper = float3(0.0, 0.0, 1.0);
     Basis base{.N = N};
     base.T = normalize(cross(helper, N));
     base.B = cross(base.T, N);

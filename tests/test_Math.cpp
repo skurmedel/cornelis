@@ -114,8 +114,8 @@ TEST_CASE("normalize") {
 TEST_CASE("cross") {
     float3 a{1.0, 0.0, 0.0};
     float3 b{0.0, 1.0, 0.0};
-    CHECK(cross(a, b) == float3{0, 0, 1.0f});
-    CHECK(cross(b, a) == float3{0, 0, -1.0f});
+    CHECK(cross(a, b) == float3(0.f, 0.f, 1.0f));
+    CHECK(cross(b, a) == float3(0.f, 0.f, -1.0f));
 
     a = float3{0.0, 1.0, 0.0};
     b = float3{0.0, 0.0, 1.0};
