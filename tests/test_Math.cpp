@@ -41,15 +41,15 @@ TEST_CASE("PixelRect: two point constructor") {
     CHECK(rect.area() == 12 * 2);
 }
 
-TEST_CASE("P2: empty constructor") {
-    P2 v;
+TEST_CASE("float2: empty constructor") {
+    float2 v;
     auto [x, y] = v;
     CHECK(x == 0);
     CHECK(y == 0);
 }
 
-TEST_CASE("P2: two variable constructor") {
-    P2 v(-1.0, 2.0);
+TEST_CASE("float2: two variable constructor") {
+    float2 v(-1.0, 2.0);
     auto [x, y] = v;
     CHECK(x == -1.0);
     CHECK(y == 2.0);

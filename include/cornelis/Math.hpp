@@ -146,27 +146,21 @@ inline auto get(P const &&p) -> std::tuple_element_t<idx, P> const && {
 /**
  * Represents a point in some 2D space (doesn't have to be a vector space).
  */
-template <typename T = float>
-struct P2 {
-    using element_type = T;
-    using value_type = element_type;
+struct float2 {
+    using element_type = float;
+    static constexpr std::size_t N = 2;
 
-    P2() : values{0} {}
-    P2(element_type x, element_type y) : values{x, y} {}
+    float2() : values{0} {}
+    float2(element_type x, element_type y) : values{x, y} {}
 
-    template <std::size_t idx>
-    auto get() -> std::tuple_element_t<idx, P2<T>> & {
-        return values[idx];
-    }
-    template <std::size_t idx>
-    auto get() const -> std::tuple_element_t<idx, P2<T>> const & {
-        return values[idx];
-    }
+    auto operator()(std::size_t i) -> float & { return values[i]; }
+    auto operator()(std::size_t i) const -> float const & { return values[i]; }
 
-    element_type values[2];
+    element_type values[N];
 };
+static_assert(product_ring<float2>, "float2 should conform to this standard.");
 
-// TODO: Make this a P2 instead.
+// TODO: Make this into a product_ring
 struct PixelCoord {
     using value_type = int32_t;
     using ValueType = value_type;
@@ -274,10 +268,13 @@ inline auto rayT(float3 origin, float3 dir, float t) -> float3 {
  * store vectors.
  */
 struct float4 {
-    alignas(16) float values[4];
+    using element_type = float;
+    static constexpr std::size_t N = 4;
 
-    auto operator[](std::size_t k) noexcept -> float & { return values[k]; }
-    auto operator[](std::size_t k) const noexcept -> float const & { return values[k]; }
+    auto operator()(std::size_t k) noexcept -> float & { return values[k]; }
+    auto operator()(std::size_t k) const noexcept -> float const & { return values[k]; }
+
+    auto operator==(float4 const &) const -> bool = default;
 
     static auto point3(float x, float y, float z) noexcept -> float4 { return init(x, y, z, 1.0f); }
 
@@ -291,51 +288,12 @@ struct float4 {
         return float4{{x1, x2, x3, x4}};
     }
 
-    auto operator==(float4 const &other) const noexcept -> bool {
-        bool res[4];
-        for (std::size_t k = 0; k < 4; k++)
-            res[k] = values[k] == other.values[k];
-        return res[0] && res[1] && res[2] && res[3];
-    }
-    auto operator!=(float4 const &other) const noexcept -> bool { return !(*this == other); }
-
-    /**
-     * Componentwise addition.
-     */
-    auto operator+(float4 const &other) const noexcept -> float4 {
-        float4 res;
-        for (auto i = 0; i < 4; i++) {
-            res.values[i] = values[i] + other[i];
-        }
-        return res;
-    }
-
-    /**
-     * Componentwise subtraction.
-     */
-    auto operator-(float4 const &other) const noexcept -> float4 {
-        float4 res;
-        for (auto i = 0; i < 4; i++) {
-            res.values[i] = values[i] - other[i];
-        }
-        return res;
-    }
-
-    /**
-     * Componentwise multiplication.
-     */
-    auto operator*(float4 const &other) const noexcept -> float4 {
-        float4 res;
-        for (auto i = 0; i < 4; i++) {
-            res.values[i] = values[i] * other[i];
-        }
-        return res;
-    }
+    alignas(16) element_type values[N];
 };
-static_assert(std::is_trivial_v<float4>, "float4 should be trivial.");
+static_assert(product_ring<float4>, "float4 should be a product_ring.");
 
 inline auto operator<<(std::ostream &s, float4 const &f4) -> std::ostream & {
-    s << "{" << f4[0] << ", " << f4[1] << ", " << f4[2] << ", " << f4[3] << "}";
+    s << "{" << f4(0) << ", " << f4(1) << ", " << f4(2) << ", " << f4(3) << "}";
     return s;
 }
 
@@ -352,22 +310,22 @@ struct float4x4 {
 
     static auto scalingMatrix(float4 const &diagonal) noexcept -> float4x4 {
         // TODO: see comment above about columns.
-        return {{diagonal[0],
+        return {{diagonal(0),
                  0.f,
                  0.f,
                  0.f,
                  0.f,
-                 diagonal[1],
+                 diagonal(1),
                  0.f,
                  0.f,
                  0.f,
                  0.f,
-                 diagonal[2],
+                 diagonal(2),
                  0.f,
                  0.f,
                  0.f,
                  0.f,
-                 diagonal[3]}};
+                 diagonal(3)}};
     }
 };
 static_assert(std::is_trivial_v<float4x4>, "float4x4 should be trivial.");
@@ -383,18 +341,6 @@ template <typename P, std::size_t k>
 requires(cornelis::product_ring<P>) struct tuple_element<k, P> {
     using type = typename P::element_type;
 };
-
-template <typename T>
-struct tuple_size<cornelis::P2<T>> : integral_constant<size_t, 2> {};
-
-template <typename T>
-struct tuple_element<0, cornelis::P2<T>> {
-    using type = T;
-};
-template <typename T>
-struct tuple_element<1, cornelis::P2<T>> {
-    using type = T;
-};
 } // namespace std
 
 namespace cornelis {
@@ -406,7 +352,7 @@ inline auto cross(float3 v1, float3 v2) -> float3 {
 
 inline auto normalize(float3 v1) -> float3 {
     auto len = sqrtf(mag2(v1));
-    if (len == 0) // TODO: better test omg.
+    if (isAlmostZero(len))
         return float3{0};
     auto s = 1.0f / len;
     return v1 * float3{s};
