@@ -413,6 +413,7 @@ inline auto constructBasis(float3 const &N) -> Basis {
     float3 helper(0.0f, 1.0f, 0.0f);
     if (abs(N(1)) > 0.95)
         helper = float3(0.0, 0.0, 1.0);
+    // With a tangent, we can just get a bi-tangent and we are done.
     Basis base{.N = N};
     base.T = normalize(cross(helper, N));
     base.B = cross(base.T, N);

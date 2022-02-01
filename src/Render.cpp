@@ -1,10 +1,12 @@
 #include <algorithm>
+#include <atomic>
 #include <numeric>
 #include <vector>
 
 #include <tbb/blocked_range2d.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
+#include <tbb/task_group.h>
 
 #include "extern/stb_image_write.h"
 
@@ -49,10 +51,6 @@ auto randomHemisphere(PRNG &prng, Basis const &base) -> float3 {
 }
 
 constexpr auto randomHemispherePDF() -> float { return 1.0f / (2.0f * Pi); }
-
-struct RayTag {
-    using element_type = Ray;
-};
 
 struct PathThroughputTag {
     using element_type = RGB;
@@ -233,6 +231,21 @@ struct RenderSession::State {
     SceneDescription sceneDescr;
     SceneData scene;
     RenderOptions options;
+    // Used for book-keeping by the render loop. Most of the values are for reporting or user
+    // feedback. Values in this will be changed by multiple threads until the render loop is
+    // completed.
+    struct Progress {
+        // How many rays we expect to trace. For a future progressive mode, this is probably not
+        // computable, and this value would be meaningless.
+        std::atomic_int64_t targetPrimaryRays;
+        // How many primary rays we have launched so far.
+        std::atomic_int64_t primayRaysTraced;
+        // When rendering in tiled mode, this is the number of tiles that needs to be completed.
+        std::atomic_int64_t targetTiles;
+        // When rendering in tiled mode, this is the number of tiles completed.
+        std::atomic_int64_t tilesCompleted;
+
+    } progress;
 };
 
 RenderSession::RenderSession(SceneDescription const &sc, RenderOptions options)
@@ -241,6 +254,12 @@ RenderSession::RenderSession(SceneDescription const &sc, RenderOptions options)
 RenderSession::~RenderSession() {}
 
 auto RenderSession::render() -> void {
+    render([](auto const &progress, auto const &status) -> RenderCommand {
+        return RenderCommand::Continue;
+    });
+}
+
+auto RenderSession::render(ProgressCallback onProgress) -> void {
     RGBFrameBuffer fb(PixelRect(512, 512));
     PRNG rootRng;
 
@@ -261,43 +280,59 @@ auto RenderSession::render() -> void {
     for (auto &tileInfo : tiling) {
         tileInfo.randomGen = cloneForThread(rootRng, tileInfo.tileNumber);
     }
+    me_->progress.targetTiles = tiling.size();
+    me_->progress.targetPrimaryRays = fb.width() * fb.height() * me_->options.samplesAA;
 
-    tbb::parallel_for_each(std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
-        printf("Rendering tile %zu on thread %d.\n",
-               tileInfo.tileNumber,
-               tbb::this_task_arena::current_thread_index());
+    tbb::task_group renderTaskGroup;
 
-        for (auto j = tileInfo.bounds.min().j; j <= tileInfo.bounds.max().j; j++) {
-            for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
-                // printf("Rendering tile %zu on thread %d: pixel %u %u\n",
-                // tileInfo.tileNumber,
-                // tbb::this_task_arena::current_thread_index(),
-                // i, j);
-                NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
+    auto taskStatus = renderTaskGroup.run_and_wait([&] {
+        tbb::parallel_for_each(
+            std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
+                for (auto j = tileInfo.bounds.min().j; j <= tileInfo.bounds.max().j; j++) {
+                    for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
+                        // printf("Rendering tile %zu on thread %d: pixel %u %u\n",
+                        // tileInfo.tileNumber,
+                        // tbb::this_task_arena::current_thread_index(),
+                        // i, j);
+                        NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
 
-                RayBatch raybatch(me_->options.samplesAA);
-                generateCameraRays(tileInfo, me_->scene.camera, screenCoord, raybatch);
-                IntersectionData intersections(me_->options.samplesAA);
+                        RayBatch raybatch(me_->options.samplesAA);
+                        generateCameraRays(tileInfo, me_->scene.camera, screenCoord, raybatch);
+                        IntersectionData intersections(me_->options.samplesAA);
 
-                while (raybatch.activeList.size() > 0) {
-                    intersect(me_->scene, raybatch, intersections);
-                    // if (raybatch.activeList.size() > 0)
-                    //    printf("actives %zu\n", raybatch.activeList.size());
-                    accumulateAndBounce(me_->scene, raybatch, intersections, tileInfo.randomGen);
-                    intersections.reset();
+                        while (raybatch.activeList.size() > 0) {
+                            intersect(me_->scene, raybatch, intersections);
+                            // if (raybatch.activeList.size() > 0)
+                            //    printf("actives %zu\n", raybatch.activeList.size());
+                            accumulateAndBounce(
+                                me_->scene, raybatch, intersections, tileInfo.randomGen);
+                            intersections.reset();
+                        }
+
+                        RGB color = RGB::black();
+                        for (auto const &term : raybatch.get<LightInTag>()) {
+                            color += term;
+                        }
+                        // Box-filter 0.5f radius
+                        color = color * (1.0f / me_->options.samplesAA);
+
+                        fb(i, j) = color;
+                    }
                 }
-
-                RGB color = RGB::black();
-                for (auto const &term : raybatch.get<LightInTag>()) {
-                    color += term;
+                me_->progress.tilesCompleted++;
+                me_->progress.primayRaysTraced += tileInfo.bounds.area() * me_->options.samplesAA;
+                if (onProgress({}, RenderStatus::Running) != RenderCommand::Continue) {
+                    tbb::task::self().cancel_group_execution();
                 }
-                // Box-filter 0.5f radius
-                color = color * (1.0f / me_->options.samplesAA);
-
-                fb(i, j) = color;
-            }
-        }
+                printf("%0.1f %% done...\n",
+                       100.0f * static_cast<float>(me_->progress.tilesCompleted) /
+                           me_->progress.targetTiles);
+            });
     });
+
+    if (taskStatus == tbb::canceled)
+        puts("Render was aborted.");
+    onProgress({}, (taskStatus == tbb::canceled) ? RenderStatus::Aborted : RenderStatus::Running);
 
     puts("Saving image.");
     saveImage(fb);
