@@ -55,6 +55,22 @@ TEST_CASE("float2: two variable constructor") {
     CHECK(y == 2.0);
 }
 
+TEST_CASE("float3: empty constructor") {
+    float3 v;
+    auto [x, y, z] = v;
+    CHECK(x == 0);
+    CHECK(y == 0);
+    CHECK(z == 0);
+}
+
+TEST_CASE("float3: three variable constructor") {
+    float3 v(-1.0, 2.0, 0.1);
+    auto [x, y, z] = v;
+    CHECK(x == -1.0);
+    CHECK(y == 2.0);
+    CHECK(z == 0.1f);
+}
+
 TEST_CASE("float4: operator==") {
     float4 a{{1.0, 2.0, 3.0, 4.0}};
     CHECK(a == a);

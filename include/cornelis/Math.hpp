@@ -3,6 +3,7 @@
 #include <cornelis/Expects.hpp>
 #include <cornelis/NanoVDBMath.hpp>
 
+#include <array>
 #include <concepts>
 #include <ostream>
 #include <tuple>
@@ -149,15 +150,29 @@ concept implicit_convertible = requires {
     To(std::declval<From>());
 };
 
+/**
+ * A wrapper around an array of N floats. It satisfies various concepts used to provide mathematical
+ * operations.
+ */
 template <std::size_t NumElements>
 struct floatN {
     using element_type = float;
     inline static const std::size_t N = NumElements;
 
-    floatN() = default;
-    explicit floatN(float a) : values{a} {}
-    floatN(implicit_convertible<float> auto ... args) requires
-        std::bool_constant<sizeof...(args) == NumElements>::value : values{static_cast<float>(args)...} {}
+    /**
+     * Zero initializes the floatN. (It's not worth the bugs to do otherwise)
+     */
+    floatN() : values{} {};
+    /**
+     * Fills the float with a specified value.
+     */
+    explicit floatN(float a) : values{} { values.fill(a); }
+    /**
+     * Takes n implicit convertible values and sets the members of the float accordingly.
+     */
+    floatN(implicit_convertible<float> auto... args) requires
+        std::bool_constant<sizeof...(args) == NumElements>::value
+        : values{static_cast<float>(args)...} {}
 
     floatN(floatN<N> const &) = default;
     floatN(floatN<N> &&) = default;
@@ -169,7 +184,7 @@ struct floatN {
 
     auto operator==(floatN<N> const &) const -> bool = default;
 
-    element_type values[N];
+    std::array<element_type, N> values;
 };
 
 using float2 = floatN<2>;
@@ -346,12 +361,21 @@ requires(cornelis::product_ring<P>) struct tuple_element<k, P> {
 } // namespace std
 
 namespace cornelis {
+/**
+ * Interprets v1 and v2 as 3D vectors and computes their cross product.
+ */
 inline auto cross(float3 v1, float3 v2) -> float3 {
     auto [x1, x2, x3] = v1;
     auto [y1, y2, y3] = v2;
     return {x2 * y3 - x3 * y2, x3 * y1 - x1 * y3, x1 * y2 - x2 * y1};
 }
 
+/**
+ * Normalize a float3 interpreted as a 3D vector.
+ *
+ * To avoid floating point issues this function has a step for vectors of a small enough magnitude.
+ * Below this cut-off, it treats it as a zero vector.
+ */
 inline auto normalize(float3 v1) -> float3 {
     auto len = sqrtf(mag2(v1));
     if (isAlmostZero(len))
@@ -360,12 +384,30 @@ inline auto normalize(float3 v1) -> float3 {
     return v1 * float3{s};
 }
 
+/**
+ * Represents the basis vectors for some 3D coordinate system.
+ */
 struct Basis {
+    /**
+     * The normal, commonly imagined as "up" and the Z-axis.
+     */
     float3 N;
+    /**
+     * Tangent vector, likes along the tangent plane.
+     */
     float3 T;
+    /**
+     * Bi-tangent vector, orthonormal to T, but still in the tangent plane.
+     */
     float3 B;
 };
 
+/**
+ * Makes up a basis using N as the normal vector. It's formulated this way because its primary use
+ * is to construct tangent planes.
+ *
+ * \pre N is normalized.
+ */
 inline auto constructBasis(float3 const &N) -> Basis {
     // Invent a tangent.
     float3 helper(0.0f, 1.0f, 0.0f);
