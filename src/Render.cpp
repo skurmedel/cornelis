@@ -214,6 +214,42 @@ auto accumulateAndBounce(SceneData &scene,
     raybatch.activeList = stillActive;
 }
 
+auto integrateTile(TileInfo &tileInfo,
+                   RenderOptions const &options,
+                   SceneData &scene,
+                   RGBFrameBuffer &fb) -> void {
+    for (auto j = tileInfo.bounds.min().j; j <= tileInfo.bounds.max().j; j++) {
+        for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
+            // printf("Rendering tile %zu on thread %d: pixel %u %u\n",
+            // tileInfo.tileNumber,
+            // tbb::this_task_arena::current_thread_index(),
+            // i, j);
+            NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
+
+            RayBatch raybatch(options.samplesAA);
+            generateCameraRays(tileInfo, scene.camera, screenCoord, raybatch);
+            IntersectionData intersections(options.samplesAA);
+
+            while (raybatch.activeList.size() > 0) {
+                intersect(scene, raybatch, intersections);
+                // if (raybatch.activeList.size() > 0)
+                //    printf("actives %zu\n", raybatch.activeList.size());
+                accumulateAndBounce(scene, raybatch, intersections, tileInfo.randomGen);
+                intersections.reset();
+            }
+
+            RGB color = RGB::black();
+            for (auto const &term : raybatch.get<LightInTag>()) {
+                color += term;
+            }
+            // Box-filter 0.5f radius
+            color = color * (1.0f / options.samplesAA);
+
+            fb(i, j) = color;
+        }
+    }
+}
+
 auto saveImage(RGBFrameBuffer const &fb) -> void {
     SRGBFrameBuffer srgbFb(PixelRect(fb.width(), fb.height()));
     std::transform(fb.begin(), fb.end(), srgbFb.begin(), toSRGB);
@@ -237,11 +273,11 @@ struct RenderSession::State {
     struct Progress {
         // How many rays we expect to trace. For a future progressive mode, this is probably not
         // computable, and this value would be meaningless.
-        std::atomic_int64_t targetPrimaryRays;
+        std::atomic_int64_t primaryRaysTarget;
         // How many primary rays we have launched so far.
         std::atomic_int64_t primayRaysTraced;
         // When rendering in tiled mode, this is the number of tiles that needs to be completed.
-        std::atomic_int64_t targetTiles;
+        std::atomic_int64_t tilesTarget;
         // When rendering in tiled mode, this is the number of tiles completed.
         std::atomic_int64_t tilesCompleted;
 
@@ -280,45 +316,15 @@ auto RenderSession::render(ProgressCallback onProgress) -> void {
     for (auto &tileInfo : tiling) {
         tileInfo.randomGen = cloneForThread(rootRng, tileInfo.tileNumber);
     }
-    me_->progress.targetTiles = tiling.size();
-    me_->progress.targetPrimaryRays = fb.width() * fb.height() * me_->options.samplesAA;
+    me_->progress.tilesTarget = tiling.size();
+    me_->progress.primaryRaysTarget = fb.width() * fb.height() * me_->options.samplesAA;
 
     tbb::task_group renderTaskGroup;
 
     auto taskStatus = renderTaskGroup.run_and_wait([&] {
         tbb::parallel_for_each(
             std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
-                for (auto j = tileInfo.bounds.min().j; j <= tileInfo.bounds.max().j; j++) {
-                    for (auto i = tileInfo.bounds.min().i; i <= tileInfo.bounds.max().i; i++) {
-                        // printf("Rendering tile %zu on thread %d: pixel %u %u\n",
-                        // tileInfo.tileNumber,
-                        // tbb::this_task_arena::current_thread_index(),
-                        // i, j);
-                        NormalizedFrameBufferCoord screenCoord({i, j}, {fb.width(), fb.height()});
-
-                        RayBatch raybatch(me_->options.samplesAA);
-                        generateCameraRays(tileInfo, me_->scene.camera, screenCoord, raybatch);
-                        IntersectionData intersections(me_->options.samplesAA);
-
-                        while (raybatch.activeList.size() > 0) {
-                            intersect(me_->scene, raybatch, intersections);
-                            // if (raybatch.activeList.size() > 0)
-                            //    printf("actives %zu\n", raybatch.activeList.size());
-                            accumulateAndBounce(
-                                me_->scene, raybatch, intersections, tileInfo.randomGen);
-                            intersections.reset();
-                        }
-
-                        RGB color = RGB::black();
-                        for (auto const &term : raybatch.get<LightInTag>()) {
-                            color += term;
-                        }
-                        // Box-filter 0.5f radius
-                        color = color * (1.0f / me_->options.samplesAA);
-
-                        fb(i, j) = color;
-                    }
-                }
+                integrateTile(tileInfo, me_->options, me_->scene, fb);
                 me_->progress.tilesCompleted++;
                 me_->progress.primayRaysTraced += tileInfo.bounds.area() * me_->options.samplesAA;
                 if (onProgress({}, RenderStatus::Running) != RenderCommand::Continue) {
@@ -326,7 +332,7 @@ auto RenderSession::render(ProgressCallback onProgress) -> void {
                 }
                 printf("%0.1f %% done...\n",
                        100.0f * static_cast<float>(me_->progress.tilesCompleted) /
-                           me_->progress.targetTiles);
+                           me_->progress.tilesTarget);
             });
     });
 
