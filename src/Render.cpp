@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <atomic>
+#include <fmt/core.h>
 #include <numeric>
 #include <vector>
 
@@ -7,6 +8,8 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
 #include <tbb/task_group.h>
+
+#include <loguru.hpp>
 
 #include "extern/stb_image_write.h"
 
@@ -296,6 +299,10 @@ auto RenderSession::render() -> void {
 }
 
 auto RenderSession::render(ProgressCallback onProgress) -> void {
+    // loguru::init(argc, argv);
+    // auto logger = spdlog::stdout_logger_mt("console");
+    // logger->set_pattern("[%H:%M:%S %z] (t %t): %v");
+
     RGBFrameBuffer fb(PixelRect(512, 512));
     PRNG rootRng;
 
@@ -304,12 +311,19 @@ auto RenderSession::render(ProgressCallback onProgress) -> void {
         return;
     }
 
-    puts("Starting render.");
-    printf("Options:\n\tAA Samples %d\n", me_->options.samplesAA);
-    printf("Scene:\n\tSpheres %3zu\n\tPlanes %3zu\n\tMaterials %3zu\n",
-           me_->scene.spheres.get<tags::PositionX>().size(),
-           me_->scene.planes.get<tags::PositionX>().size(),
-           me_->scene.materials.size());
+    LOG_F(INFO, "Starting render session.");
+    {
+        LOG_SCOPE_F(INFO, "Render Options");
+        LOG_F(INFO, "AA Samples {:4}", me_->options.samplesAA);
+    }
+    {
+        LOG_SCOPE_F(INFO, "Scene information");
+        LOG_F(INFO, "Spheres   {:4}", me_->scene.spheres.get<tags::PositionX>().size());
+        LOG_F(INFO, "Planes    {:4}", me_->scene.planes.get<tags::PositionX>().size());
+        LOG_F(INFO, "Materials {:4}", me_->scene.materials.size());
+    }
+
+    // spdlog::stopwatch renderTimer;
 
     FrameTiling tiling(PixelRect(fb.width(), fb.height()), PixelRect{32, 32});
     // Set up PRNGs to start at different points in the period.
@@ -324,23 +338,28 @@ auto RenderSession::render(ProgressCallback onProgress) -> void {
     auto taskStatus = renderTaskGroup.run_and_wait([&] {
         tbb::parallel_for_each(
             std::begin(tiling), std::end(tiling), [&](TileInfo &tileInfo) -> void {
+                auto threadName = fmt::format("tile thread {}", tileInfo.tileNumber);
+                loguru::set_thread_name(threadName.c_str());
+
                 integrateTile(tileInfo, me_->options, me_->scene, fb);
                 me_->progress.tilesCompleted++;
                 me_->progress.primayRaysTraced += tileInfo.bounds.area() * me_->options.samplesAA;
                 if (onProgress({}, RenderStatus::Running) != RenderCommand::Continue) {
                     tbb::task::self().cancel_group_execution();
                 }
-                printf("%0.1f %% done...\n",
-                       100.0f * static_cast<float>(me_->progress.tilesCompleted) /
-                           me_->progress.tilesTarget);
+                auto percentComplete = 100.0f * static_cast<float>(me_->progress.tilesCompleted) /
+                                       me_->progress.tilesTarget;
+                if (static_cast<int>(percentComplete*10) % 5 == 0)
+                    LOG_F(INFO, "{:1.1f}% done..", percentComplete);
             });
     });
 
     if (taskStatus == tbb::canceled)
-        puts("Render was aborted.");
+        LOG_F(WARNING, "Render was aborted.");
     onProgress({}, (taskStatus == tbb::canceled) ? RenderStatus::Aborted : RenderStatus::Running);
 
-    puts("Saving image.");
+    // LOG_F(INFO, "Render took {} s", renderTimer.elapsed());
+    LOG_F(INFO, "Saving image.");
     saveImage(fb);
 }
 } // namespace cornelis
