@@ -323,8 +323,6 @@ auto RenderSession::render(ProgressCallback onProgress) -> void {
         LOG_F(INFO, "Materials {:4}", me_->scene.materials.size());
     }
 
-    // spdlog::stopwatch renderTimer;
-
     FrameTiling tiling(PixelRect(fb.width(), fb.height()), PixelRect{32, 32});
     // Set up PRNGs to start at different points in the period.
     for (auto &tileInfo : tiling) {
