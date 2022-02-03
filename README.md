@@ -15,30 +15,30 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
 
 ### Milestone 2
  - [ ] Basic diffuse & glossy specular mix "standard material"
- - [ ] Monte Carlo path tracing
+ - [X] Monte Carlo path tracing
+ - [ ] OpenEXR output 
 
 ### Milestone 3
- - [ ] Sample point generators
- - [ ] Quasi Monte Carlo via Sobol sequences or similar
- - [ ] Gaussian Filtering via Filter Importance Sampling
-
-### Milestone 4
  - [ ] Next event estimation (fancy name for direct light sampling)
  - [ ] Progressive mode (sample for x seconds)
- - [ ] OpenEXR output
- - [ ] Level Set surface rendering via NanoVDB
-  
-### Milestone 5
- - [ ] Fog volumes
-
-### Milestone 6
  - [ ] Importance Sampling (for the material)
- - [ ] Spectral rendering (i.e not just sRGB)
  - [ ] Area lights
 
-### Other wishes
- - [ ] MIS: Multiple Importance Sampling (material and lights)
+### Milestone 4
+ - [ ] Spectral rendering (i.e not just sRGB)
+ - [ ] Gaussian Filtering via Filter Importance Sampling
  - [ ] Variance diagnostics
+ - [ ] MIS: Multiple Importance Sampling (material and lights)
+
+### Milestone 5
+ - [ ] Sample point generators
+ - [ ] Quasi Monte Carlo via Sobol sequences or similar 
+  
+### Milestone 6
+ - [ ] Fog volumes
+ - [ ] Level Set surface rendering via NanoVDB
+
+### Other wishes
  - [ ] GPU support
  - [ ] Distorsion support in camera
  - [ ] Realistic lens camera model
