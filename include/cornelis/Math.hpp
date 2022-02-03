@@ -168,6 +168,19 @@ struct floatN {
      */
     explicit floatN(float a) : values{} { values.fill(a); }
     /**
+     * Helper constructor for when there's just two values.
+     *
+     * This is provided because the variadic version has some small problems, and some IDEs are less
+     * happy about it.
+     */
+    template <std::size_t Num = N, typename = std::enable_if_t<Num == 2>>
+    floatN(float x, float y) : values{x, y} {}
+    /**
+     * Helper constructor for when there's just three values.
+     */
+    template <std::size_t Num = N, typename = std::enable_if_t<Num == 3>>
+    floatN(float x, float y, float z) : values{x, y, z} {}
+    /**
      * Takes n implicit convertible values and sets the members of the float accordingly.
      */
     floatN(implicit_convertible<float> auto... args) requires
