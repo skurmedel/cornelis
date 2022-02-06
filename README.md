@@ -17,6 +17,7 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
  - [ ] Basic diffuse & glossy specular mix "standard material"
  - [X] Monte Carlo path tracing
  - [ ] OpenEXR output 
+ - [ ] Improved Russian Roulette
 
 ### Milestone 3
  - [ ] Next event estimation (fancy name for direct light sampling)

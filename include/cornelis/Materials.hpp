@@ -8,8 +8,8 @@ namespace cornelis {
  * Describes the "Bi-directional Scattering Distribution Function". This function describes the
  * amount of light scattered for a certain pair of directions.
  */
-struct BSDF {
-    virtual ~BSDF() = default;
+struct BRDF {
+    virtual ~BRDF() = default;
 
     /**
      * wi is the input direction, wo is the output direction. This returns the density of light
@@ -24,14 +24,14 @@ struct BSDF {
      * sense, coupled.
      *
      * For this function to be physically plausible the following must hold:
-     *  - reciprocity so for a BSDF B we should have B(u, v) = B(v, u)
+     *  - reciprocity so for a BRDF B we should have B(u, v) = B(v, u)
      *  - energy conserving, i.e the integral of this function over the sphere is at most 1.
      *  - np negative values
      */
     virtual auto operator()(float3 const &wi, float3 const &wo) const noexcept -> RGB = 0;
 
     /**
-     * Query the probability density function for this BSDF. This function should integrate to 1
+     * Query the probability density function for this BRDF. This function should integrate to 1
      * over the sphere (at least in theory.)
      *
      * Returns the probability that light is scattered in the given direction.
@@ -41,9 +41,9 @@ struct BSDF {
     // TODO: support refracting materials.
 };
 
-class LambertBSDF : public BSDF {
+class LambertBRDF : public BRDF {
   public:
-    LambertBSDF(RGB albedo) : albedo_(albedo) {}
+    LambertBRDF(RGB albedo) : albedo_(albedo) {}
 
     auto operator()(float3 const &wi, float3 const &wo) const noexcept -> RGB override {
         return albedo_ / cornelis::Pi;
@@ -61,12 +61,12 @@ class StandardMaterial {
   public:
     StandardMaterial(RGB albedo, RGB emission) : emission_(emission), bsdf_(albedo) {}
 
-    auto bsdf(float3 const &P, float3 const &N) const noexcept -> BSDF const & { return bsdf_; }
+    auto brdf(float3 const &P, float3 const &N) const noexcept -> BRDF const & { return bsdf_; }
 
     auto emission(float3 const &P) const noexcept -> RGB { return emission_; }
 
   private:
     RGB emission_;
-    LambertBSDF bsdf_;
+    LambertBRDF bsdf_;
 };
 } // namespace cornelis

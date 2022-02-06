@@ -194,11 +194,11 @@ auto accumulateAndBounce(SceneData &scene,
             continue;
         }
 
-        BSDF const &bsdf = mat.bsdf(P, N);
+        BRDF const &brdf = mat.brdf(P, N);
         // TODO: we can do much better here by importance sampling.
         float3 w_in = randomHemisphere(randomGen, constructBasis(N));
         // float3 w_in = normalize(N + randomSphere(randomGen));
-        // float pdf = bsdf.pdf(w_in);
+        // float pdf = brdf.pdf(w_in);
         float pdf = randomHemispherePDF();
 
         // TODO: we should probably chose prob here based on the material at least.
@@ -210,7 +210,7 @@ auto accumulateAndBounce(SceneData &scene,
         raybatch.scaleThroughput(k,
                                  //   (RGB{P[0], P[1], P[2]} * 0.5f + RGB{0.5, 0.5, 0.5}) / Pi *
                                  //       abs(dot(w_in, N)) / (pdf * prob));
-                                 bsdf(w_in, w_out) * abs(dot(w_in, N)) / (pdf * prob));
+                                 brdf(w_in, w_out) * abs(dot(w_in, N)) / (pdf * prob));
 
         stillActive.push_back(k);
     }
@@ -347,7 +347,7 @@ auto RenderSession::render(ProgressCallback onProgress) -> void {
                 }
                 auto percentComplete = 100.0f * static_cast<float>(me_->progress.tilesCompleted) /
                                        me_->progress.tilesTarget;
-                if (static_cast<int>(percentComplete*10) % 5 == 0)
+                if (static_cast<int>(percentComplete * 10) % 5 == 0)
                     LOG_F(INFO, "{:1.1f}% done..", percentComplete);
             });
     });
