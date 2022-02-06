@@ -5,7 +5,7 @@
 
 namespace cornelis {
 /**
- * Describes the "Bi-directional Scattering Distribution Function". This function describes the
+ * Describes the "Bi-directional Reflectance Distribution Function". This function describes the
  * amount of light scattered for a certain pair of directions.
  */
 struct BRDF {
@@ -23,6 +23,9 @@ struct BRDF {
      * Furthermore, it returns the results for all wavelengths at the same time. They are thus in a
      * sense, coupled.
      *
+     * Note: this function is usually called f() in the rendering equation, and is what we usually
+     * call the BRDF.
+     *
      * For this function to be physically plausible the following must hold:
      *  - reciprocity so for a BRDF B we should have B(u, v) = B(v, u)
      *  - energy conserving, i.e the integral of this function over the sphere is at most 1.
@@ -39,6 +42,46 @@ struct BRDF {
     virtual auto pdf(float3 const &wi) const noexcept -> float = 0;
 
     // TODO: support refracting materials.
+};
+
+class OrenNayarBRDF : public BRDF {
+  public:
+    /**
+     * @param albedo  The underlying "colour"
+     * @param sigma   Roughness parameter in radians.
+     */
+    OrenNayarBRDF(RGB albedo, float sigma)
+        : albedo_(albedo), sigma2_(sigma * sigma),
+          a_(1.0f - (sigma2_ / (2.0f * (sigma2_ + 0.333f)))),
+          b_(0.45f * sigma2_ / (sigma2_ + 0.09f)) {}
+
+    auto operator()(float3 const &wi, float3 const &wo) const noexcept -> RGB override {
+        // TODO: we could simplify and optimise this a lot by basis change.
+        // TODO: probably numerically troublesome. Can be rewritten.
+        float cosThetaI = wi(2);
+        float cosThetaO = wo(2);
+        float sinThetaI = sqrtf(1.0f - cosThetaI * cosThetaI);
+        float sinThetaO = sqrtf(1.0f - cosThetaO * cosThetaO);
+        float phiI = std::acos(wi(0) / sinThetaI);
+        float phiO = std::acos(wo(0) / sinThetaO);
+        float thetaO = std::acos(cosThetaO);
+        float thetaI = std::acos(cosThetaI);
+        float alpha = std::max(thetaI, thetaO);
+        float beta = std::min(thetaI, thetaO);
+
+        return (albedo_ / cornelis::Pi) *
+               (a_ + b_ * std::max(0.0f, cosf(phiI - phiO)) * sin(alpha) * sin(beta));
+    }
+    auto pdf(float3 const &wi) const noexcept -> float override {
+        // This PDF is wrong and just copied from Lambert, fix when we do Importance Sampling.
+        return 1.0f / (4.0f * cornelis::Pi);
+    }
+
+  private:
+    RGB albedo_;
+    float sigma2_;
+    float a_;
+    float b_;
 };
 
 class LambertBRDF : public BRDF {
@@ -59,7 +102,7 @@ class LambertBRDF : public BRDF {
 
 class StandardMaterial {
   public:
-    StandardMaterial(RGB albedo, RGB emission) : emission_(emission), bsdf_(albedo) {}
+    StandardMaterial(RGB albedo, RGB emission) : emission_(emission), bsdf_(albedo, Pi / 6.0f) {}
 
     auto brdf(float3 const &P, float3 const &N) const noexcept -> BRDF const & { return bsdf_; }
 
@@ -67,6 +110,6 @@ class StandardMaterial {
 
   private:
     RGB emission_;
-    LambertBRDF bsdf_;
+    OrenNayarBRDF bsdf_;
 };
 } // namespace cornelis
