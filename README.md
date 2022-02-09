@@ -14,22 +14,23 @@ Current plan is for cornelis to only feature two shaders, some sort of "standard
  - [x] AA
 
 ### Milestone 2
- - [ ] Basic diffuse & glossy specular mix "standard material"
+ - [x] Basic diffuse & glossy specular mix "standard material"
  - [X] Monte Carlo path tracing
  - [ ] OpenEXR output 
- - [ ] Improved Russian Roulette
+ - [x] Improved Russian Roulette
 
 ### Milestone 3
+ - [ ] Light objects
  - [ ] Next event estimation (fancy name for direct light sampling)
- - [ ] Progressive mode (sample for x seconds)
- - [ ] Importance Sampling (for the material)
+ - [ ] MIS: Multiple Importance Sampling (material and lights)
+ - [x] Importance Sampling (for the material)
  - [ ] Area lights
 
 ### Milestone 4
  - [ ] Spectral rendering (i.e not just sRGB)
  - [ ] Gaussian Filtering via Filter Importance Sampling
  - [ ] Variance diagnostics
- - [ ] MIS: Multiple Importance Sampling (material and lights)
+ - [ ] Progressive mode (sample for x seconds)
 
 ### Milestone 5
  - [ ] Sample point generators
