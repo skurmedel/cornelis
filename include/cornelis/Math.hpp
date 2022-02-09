@@ -122,7 +122,7 @@ template <product_ring P>
 inline auto operator*(typename P::element_type const &a, P const &b) noexcept -> P {
     P res;
     for (std::size_t i = 0; i < P::N; i++) {
-        res[i] = a * b[i];
+        res(i) = a * b(i);
     }
     return res;
 }

@@ -194,9 +194,10 @@ auto accumulateAndBounce(SceneData &scene,
             continue;
         }
 
+        Basis basis = constructBasis(N);
         BRDF const &brdf = mat.brdf(P, N);
         // TODO: we can do much better here by importance sampling.
-        float3 w_in = randomHemisphere(randomGen, constructBasis(N));
+        float3 w_in = randomHemisphere(randomGen, basis);
         // float3 w_in = normalize(N + randomSphere(randomGen));
         // float pdf = brdf.pdf(w_in);
         float pdf = randomHemispherePDF();
@@ -210,7 +211,7 @@ auto accumulateAndBounce(SceneData &scene,
         raybatch.scaleThroughput(k,
                                  //   (RGB{P[0], P[1], P[2]} * 0.5f + RGB{0.5, 0.5, 0.5}) / Pi *
                                  //       abs(dot(w_in, N)) / (pdf * prob));
-                                 brdf(w_in, w_out) * abs(dot(w_in, N)) / (pdf * prob));
+                                 brdf(w_in, w_out, N) * abs(dot(w_in, N)) / (pdf * prob));
 
         stillActive.push_back(k);
     }

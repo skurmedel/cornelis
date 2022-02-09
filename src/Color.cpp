@@ -23,6 +23,12 @@ auto RGB::operator*=(RGB const &other) noexcept -> RGB & {
     return *this;
 }
 
+auto RGB::clamp(float minComponent, float maxComponent) const noexcept -> RGB {
+    return RGB(std::clamp(values[0], minComponent, maxComponent),
+               std::clamp(values[1], minComponent, maxComponent),
+               std::clamp(values[2], minComponent, maxComponent));
+}
+
 // adapted from GLSL versions at
 // https://github.com/skurmedel/shaders/blob/master/glsl/gamma_correct.glsl
 /*
