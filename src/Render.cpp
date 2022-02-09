@@ -36,25 +36,6 @@ struct NormalizedFrameBufferCoord {
     float dx, dy, x, y;
 };
 
-constexpr float RussianRouletteFactor = 0.75;
-
-auto randomHemisphere(PRNG &prng) -> float3 {
-    float x1 = prng();
-    float x2 = prng();
-
-    float a = 2.0 * Pi * x2;
-    float b = sqrt(1.0f - x1 * x1);
-
-    return float3(cos(a) * b, sin(a) * b, x1);
-}
-
-auto randomHemisphere(PRNG &prng, Basis const &base) -> float3 {
-    float3 v = randomHemisphere(prng);
-    return base.B * v(0) + base.T * v(1) + base.N * v(2);
-}
-
-constexpr auto randomHemispherePDF() -> float { return 1.0f / (2.0f * Pi); }
-
 struct PathThroughputTag {
     using element_type = RGB;
 };
@@ -168,10 +149,21 @@ auto intersect(SceneData &scene, RayBatch &raybatch, IntersectionData &intersect
     raybatch.activeList = newActiveList;
 }
 
+auto russianRouletteFactor(int32_t depth) -> float {
+    // Depth factor.
+    constexpr float RussianRouletteFactor = 0.55;
+    if (depth < 3) {
+        return 0.85f;
+    } else {
+        return RussianRouletteFactor;
+    }
+}
+
 auto accumulateAndBounce(SceneData &scene,
                          RayBatch &raybatch,
                          IntersectionData &intersections,
-                         PRNG &randomGen) -> void {
+                         PRNG &randomGen,
+                         int32_t depth) -> void {
     std::vector<std::size_t> stillActive;
     for (auto k : raybatch.activeList) {
         float3 const w_out = -raybatch.rayDir(k);
@@ -182,14 +174,14 @@ auto accumulateAndBounce(SceneData &scene,
 
         auto const &mat = scene.materials[materialIds[k]];
         // TODO: We can chose a much better russian roulette factor.
-        auto const prob = RussianRouletteFactor;
+        auto const prob = russianRouletteFactor(depth);
         auto const P = float3{Px[k], Py[k], Pz[k]};
         auto const N = float3{Nx[k], Ny[k], Nz[k]};
         auto const L_e = mat.emission(P);
 
         raybatch.accumulateLight(k, L_e);
 
-        if (prob <= randomGen()) {
+        if (prob < randomGen()) {
             // We killed the ray tree due to russian roulette.
             continue;
         }
@@ -197,10 +189,12 @@ auto accumulateAndBounce(SceneData &scene,
         Basis basis = constructBasis(N);
         BRDF const &brdf = mat.brdf(P, N);
         // TODO: we can do much better here by importance sampling.
-        float3 w_in = randomHemisphere(randomGen, basis);
+        float pdf = randomHemispherePDF();
+        float3 w_in{};
+        float3 samplePos(randomGen(), randomGen(), randomGen());
+        RGB f = brdf.generateDirection(w_out, samplePos, basis, w_in, pdf);
         // float3 w_in = normalize(N + randomSphere(randomGen));
         // float pdf = brdf.pdf(w_in);
-        float pdf = randomHemispherePDF();
 
         // TODO: we should probably chose prob here based on the material at least.
         // Create new ray for this bounce.
@@ -211,7 +205,7 @@ auto accumulateAndBounce(SceneData &scene,
         raybatch.scaleThroughput(k,
                                  //   (RGB{P[0], P[1], P[2]} * 0.5f + RGB{0.5, 0.5, 0.5}) / Pi *
                                  //       abs(dot(w_in, N)) / (pdf * prob));
-                                 brdf(w_in, w_out, N) * abs(dot(w_in, N)) / (pdf * prob));
+                                 f * abs(dot(w_in, N)) / (pdf * prob));
 
         stillActive.push_back(k);
     }
@@ -234,11 +228,12 @@ auto integrateTile(TileInfo &tileInfo,
             generateCameraRays(tileInfo, scene.camera, screenCoord, raybatch);
             IntersectionData intersections(options.samplesAA);
 
+            int32_t depth = 0;
             while (raybatch.activeList.size() > 0) {
                 intersect(scene, raybatch, intersections);
                 // if (raybatch.activeList.size() > 0)
                 //    printf("actives %zu\n", raybatch.activeList.size());
-                accumulateAndBounce(scene, raybatch, intersections, tileInfo.randomGen);
+                accumulateAndBounce(scene, raybatch, intersections, tileInfo.randomGen, depth++);
                 intersections.reset();
             }
 

@@ -35,4 +35,30 @@ inline auto cloneForThread(PRNG const &prng, std::size_t threadK) -> PRNG {
         copy.xoroshiro.jump();
     return copy;
 }
+
+inline auto randomHemisphere(float2 const x) -> float3 {
+    auto [x1, x2] = x;
+
+    float a = 2.0 * Pi * x2;
+    float b = sqrt(1.0f - x1 * x1);
+
+    return float3(cos(a) * b, sin(a) * b, x1);
+}
+
+inline auto randomHemisphere(PRNG &prng) -> float3 {
+    return randomHemisphere(float2(prng(), prng()));
+}
+
+inline auto randomHemisphere(float2 x, Basis const &base) -> float3 {
+    float3 v = randomHemisphere(x);
+    return base.B * v(0) + base.T * v(1) + base.N * v(2);
+}
+
+inline auto randomHemisphere(PRNG &prng, Basis const &base) -> float3 {
+    float3 v = randomHemisphere(prng);
+    return base.B * v(0) + base.T * v(1) + base.N * v(2);
+}
+
+constexpr auto randomHemispherePDF() -> float { return 1.0f / (2.0f * Pi); }
+
 } // namespace cornelis

@@ -2,6 +2,7 @@
 
 #include <cornelis/Color.hpp>
 #include <cornelis/Math.hpp>
+#include <cornelis/PRNG.hpp> // TODO: get rid of this include.
 
 namespace cornelis {
 // TODO: move this to .cpp
@@ -15,6 +16,10 @@ namespace models {
  * @param alpha   A roughness constant, should be in [0,1].
  */
 auto distributionGTR3p2(float cos_theta_H, float alpha) -> float;
+/**
+ * Same as distributionGTR3p2 but with gamma = 2 as an exponent. This is called GGX by many.
+ */
+auto distributionGTR2(float cos_theta_H, float alpha) -> float;
 /**
  * Gives the lambda function used in the shadowing and masking term for a Trowbridge-Reitz
  * microfacet distribution.
@@ -78,12 +83,36 @@ struct BRDF {
         -> RGB = 0;
 
     /**
-     * Query the probability density function for this BRDF. This function should integrate to 1
-     * over the sphere (at least in theory.)
+     * This kitchen sink function generates a "reflected" direction from the output direction and
+     * three random variables (x).
      *
-     * Returns the probability that light is scattered in the given direction.
+     * It also stores the probability density function value in pdf, and returns the BRDF for the
+     * generated direction.
+     *
+     * Note: pbrt and others calls this sample_f, I think that's a profoundly useless name. This
+     * name isn't much better and probably indicates that this function should be of a different
+     * form.
+     *
+     * By default this randomly samples the hemisphere.
+     *
+     * @param wo  Light out direction (world), commonly called the viewer.
+     * @param x   Three sample floats, usually just 2 are needed. The third can be used for choices.
+     * @param b   Local basis for the point on the surface.
+     * @param wi  Light in direction (world), commonly called the light.
+     * @param pdf Probability that this direction was chosen.
+     * @return RGB The BRDF (f-value) for these directions.
      */
-    virtual auto pdf(float3 const &wi) const noexcept -> float = 0;
+    virtual auto
+    generateDirection(float3 const &wo, float3 x, Basis const &b, float3 &wi, float &pdf) const
+        -> RGB {
+        wi = randomHemisphere(float2(x(0), x(1)), b);
+        pdf = this->pdf(wi, wo, b);
+        return (*this)(wi, wo, b.N);
+    }
+
+    virtual auto pdf(float3 const &wi, float3 const &wo, Basis const &b) const noexcept -> float {
+        return randomHemispherePDF();
+    }
 
     // TODO: support refracting materials.
 };
@@ -104,7 +133,9 @@ class GlossyBRDF : public BRDF {
         // TODO: probably numerically troublesome. Can be rewritten.
 
         float cos_thetaO = std::max(0.0f, dot(wo, N));
+        float sin_thetaO = sqrtf(1.0f - cos_thetaO * cos_thetaO);
         float cos_thetaI = std::max(0.0f, dot(wi, N));
+        float sin_thetaI = sqrtf(1.0f - cos_thetaI * cos_thetaI);
         // This check is crucial, because if this starts generating NaNs the whole image can
         // end up black or some other strange colour, and it's extremely annoying to find the cause.
         if (isAlmostZero(cos_thetaO) || isAlmostZero(cos_thetaI))
@@ -115,18 +146,50 @@ class GlossyBRDF : public BRDF {
             return RGB::black();
         float cos_theta_H = std::max(0.0f, dot(h, N));
 
-        float D = models::distributionGTR3p2(cos_theta_H, alpha_);
-        float G = models::shadowMaskingTR(cos_thetaI, cos_thetaO, alpha_);
+        float D = models::distributionGTR2(cos_theta_H, alpha_);
+        float G = models::shadowMaskingTR(sin_thetaI / cos_thetaI, sin_thetaO / cos_thetaO, alpha_);
         float F = models::schlick(cos_theta_H, 1.0f, refidx_);
 
         return tint_ * (F * D * G / (4.0f * cos_thetaO * cos_thetaI));
     }
-    auto pdf(float3 const &wi) const noexcept -> float override {
-        // This PDF is wrong and just copied from Lambert, fix when we do Importance Sampling.
-        return 1.0f / (4.0f * cornelis::Pi);
+
+    auto generateDirection(float3 const &wo, float3 x, Basis const &b, float3 &wi, float &pdf) const
+        -> RGB override {
+        // Todo: move this into a function.
+        float alpha2 = alpha_ * alpha_;
+        float A = 1.0f - x(1);
+        float B = 1.0f + (alpha2 - 1.0f) * x(1);
+        float cos_theta_H = sqrtf(A / B);
+        float sin_theta_H = sqrt(1.0f - cos_theta_H * cos_theta_H);
+
+        float phih = 2.0f * Pi * x(0);
+
+        float3 h = normalize(sin_theta_H * cos(phih) * b.B + sin_theta_H * sin(phih) * b.T +
+                             cos_theta_H * b.N);
+        if (dot(h, b.N) < 0.0f)
+            return RGB(0.0f, 0.0f, 0.0f);
+        wi = normalize(2.0 * dot(wo, h) * h - wo);
+
+        pdf = this->pdf(wi, wo, b);
+        return (*this)(wi, wo, b.N);
+    }
+
+    auto pdf(float3 const &wi, float3 const &wo, Basis const &b) const noexcept -> float override {
+        float3 h = normalize(wi + wo);
+        float cos_theta_h = std::max(0.0f, dot(h, b.N));
+        if (isAlmostZero(cos_theta_h))
+            return 1.0f;
+        float D = models::distributionGTR2(cos_theta_h, alpha_);
+        float pdfh = D * abs(cos_theta_h);
+        float wi_dot_h = dot(wi, h);
+        if (isAlmostZero(wi_dot_h))
+            return pdfh;
+        return pdfh / (4.0f * wi_dot_h);
     }
 
     auto tint() const noexcept -> RGB { return tint_; }
+
+    auto ior() const noexcept -> float { return refidx_; }
 
   private:
     RGB tint_;
@@ -163,10 +226,6 @@ class OrenNayarBRDF : public BRDF {
         return (albedo_ / cornelis::Pi) *
                (a_ + b_ * std::max(0.0f, cosf(phiI - phiO)) * sin(alpha) * sin(beta));
     }
-    auto pdf(float3 const &wi) const noexcept -> float override {
-        // This PDF is wrong and just copied from Lambert, fix when we do Importance Sampling.
-        return 1.0f / (4.0f * cornelis::Pi);
-    }
 
     auto albedo() const noexcept -> RGB { return albedo_; }
 
@@ -178,10 +237,10 @@ class OrenNayarBRDF : public BRDF {
 };
 
 /**
- * This is a BRDF that approximates a material that has thin glossy layer on top of a diffuse one.
- * 
- * This is suitable for things like a painted surface, wood and so forth. It can probably be abused 
- * to look like most surfaces though.
+ * This is a BRDF that approximates a material that has a thin glossy layer on top of a diffuse one.
+ *
+ * This is suitable for things like a painted surface, wood and so forth. It can probably be abused
+ * to look like most opaque surfaces though.
  */
 class LayeredBRDF : public BRDF {
   public:
@@ -189,29 +248,61 @@ class LayeredBRDF : public BRDF {
      * @param albedo  The underlying "colour"
      * @param sigma   Roughness parameter in radians.
      */
-    LayeredBRDF(OrenNayarBRDF diffuseBrdf, GlossyBRDF glossyBrdf, float reflectance)
-        : diffuse_(diffuseBrdf), glossy_(glossyBrdf), reflectance_(reflectance) {}
+    LayeredBRDF(RGB albedo, RGB glossyTint, float perceptualRoughness, float ior)
+        : diffuse_(albedo, diffuseRough(perceptualRoughness)),
+          glossy_(glossyTint, glossyRough(perceptualRoughness), ior) {}
 
     auto operator()(float3 const &wi, float3 const &wo, float3 const &N) const noexcept
         -> RGB override {
         RGB D_f = diffuse_(wi, wo, N);
         RGB G_f = glossy_(wi, wo, N);
-        constexpr auto w_term = [](float3 const &w, float3 const &N) {
-            auto N_dot_w = std::max(0.0f, dot(N, w));
-            return 1.0f - std::pow(1.0f - 0.5f * N_dot_w, 5.0f);
-        };
         // This is not very realistic but at least scales the diffuse at grazing angles.
-        return (1.0f - models::schlick(std::max(0.0f, dot(N, wi)), 1.0f, 1.5f)) * D_f + G_f;
+        // It is similar to the model of Ashikimin and Shirley, but probably less realistic.
+        return (1.0f - models::schlick(std::max(0.0f, dot(N, wi)), 1.0f, glossy_.ior())) * D_f +
+               G_f;
     }
-    auto pdf(float3 const &wi) const noexcept -> float override {
-        // This PDF is wrong and just copied from Lambert, fix when we do Importance Sampling.
-        return 1.0f / (4.0f * cornelis::Pi);
+
+    auto pdf(float3 const &wi, float3 const &wo, Basis const &b) const noexcept -> float override {
+        /* Since we have chosen between two alternatives, we need to multiply our PDF by the
+           probability of the chosen path. Let X be the probability of the generated direction, and
+           K the probability of the choice.
+
+           P(X and K) = P(X | K) * P(K) But P(K) = 1/2, so P(X and K) = 0.5 * P(X | K)
+
+           However this is troublesome in our case, since the glossy layer will likely have a low
+           pdf when the incident angle is low. This will underestimate the diffuse, and we will get
+           greater variance. For this reason, the pdf() function choses a weighted average instead.
+          */
+        return 0.5f * (diffuse_.pdf(wi, wo, b) + glossy_.pdf(wi, wo, b));
+    }
+
+    auto generateDirection(float3 const &wo, float3 x, Basis const &b, float3 &wi, float &pdf) const
+        -> RGB override {
+        float pdf_chosen = 0.0f;
+        RGB brdf;
+        if (x(2) < 0.5f) {
+            x(2) *= 2.0f; // Readjust x(2) since we have made a choice on it.
+            brdf = diffuse_.generateDirection(wo, x, b, wi, pdf_chosen);
+        } else {
+            x(2) = (x(2) - 0.5f) * 2.0f;
+            brdf = glossy_.generateDirection(wo, x, b, wi, pdf_chosen);
+        }
+
+        pdf = this->pdf(wi, wo, b);
+        return (*this)(wi, wo, b.N);
     }
 
   private:
+    static inline auto glossyRough(float perceptual) -> float {
+        // This is a remapping suggested by Brent Burley in the Disney Principled Shader paper.
+        return perceptual * perceptual;
+    }
+    static inline auto diffuseRough(float perceptual) -> float {
+        return abs(0.5f * glossyRough(perceptual));
+    }
+
     OrenNayarBRDF diffuse_;
     GlossyBRDF glossy_;
-    float reflectance_;
 };
 
 class LambertBRDF : public BRDF {
@@ -222,7 +313,7 @@ class LambertBRDF : public BRDF {
         -> RGB override {
         return albedo_ / cornelis::Pi;
     }
-    auto pdf(float3 const &wi) const noexcept -> float override {
+    auto pdf(float3 const &wi, float3 const &wo, Basis const &b) const noexcept -> float override {
         // This is the area of a unit sphere and represents a completely uniform distribution.
         return 1.0f / (4.0f * cornelis::Pi);
     }
@@ -233,9 +324,9 @@ class LambertBRDF : public BRDF {
 
 class StandardMaterial {
   public:
-    StandardMaterial(RGB albedo, RGB emission)
-        : emission_(emission),
-          bsdf_(OrenNayarBRDF(albedo, 0.2), GlossyBRDF(RGB(0.8, 0.8, 0.8), 0.05f), 0.3f) {}
+    StandardMaterial(
+        RGB albedo, RGB emission, RGB reflectionTint, float roughness = 0.1f, float ior = 1.5f)
+        : emission_(emission), bsdf_(albedo, reflectionTint, roughness, ior) {}
 
     auto brdf(float3 const &P, float3 const &N) const noexcept -> BRDF const & { return bsdf_; }
 
