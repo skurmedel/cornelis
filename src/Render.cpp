@@ -149,13 +149,18 @@ auto intersect(SceneData &scene, RayBatch &raybatch, IntersectionData &intersect
     raybatch.activeList = newActiveList;
 }
 
-auto russianRouletteFactor(int32_t depth) -> float {
-    // Depth factor.
-    constexpr float RussianRouletteFactor = 0.55;
+// Returns the probability that a desired ray should survive.
+auto russianRouletteFactor(RGB const &throughput, int32_t depth) -> float {
+    constexpr float BaseRussianRouletteFactor = 0.55f;
+    // Always make sure we get good indirect lighting, which is most potent the first two bounces
+    // (depth 0 is the camera ray).
     if (depth < 3) {
-        return 0.85f;
+        return 0.99f;
     } else {
-        return RussianRouletteFactor;
+        float power = std::clamp(mag2(float3(throughput(0), throughput(1), throughput(2))),
+                                 0.05f / BaseRussianRouletteFactor,
+                                 0.99f);
+        return BaseRussianRouletteFactor * power;
     }
 }
 
@@ -174,7 +179,7 @@ auto accumulateAndBounce(SceneData &scene,
 
         auto const &mat = scene.materials[materialIds[k]];
         // TODO: We can chose a much better russian roulette factor.
-        auto const prob = russianRouletteFactor(depth);
+        auto const prob = russianRouletteFactor(raybatch.throughput(k), depth);
         auto const P = float3{Px[k], Py[k], Pz[k]};
         auto const N = float3{Nx[k], Ny[k], Nz[k]};
         auto const L_e = mat.emission(P);
