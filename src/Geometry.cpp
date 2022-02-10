@@ -64,8 +64,7 @@ auto intersectSphere(SoATuple3f rayOrigins,
                 t^2 + 2 B t / A + C / A = r^2 / A
         */
         // Check for a well behaved ray.
-        if (rdx[k] == 0 && rdy[k] == 0 && rdz[k] == 0) // TODO: better test PLZ FOR THE LOVE OF GOD.
-        {
+        if (isAlmostZero(rdx[k]) && isAlmostZero(rdy[k]) && isAlmostZero(rdz[k])) {
             intersected[k] = false;
             continue;
         }

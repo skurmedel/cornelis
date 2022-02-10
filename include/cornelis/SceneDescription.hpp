@@ -14,6 +14,9 @@ namespace cornelis {
 struct MaterialDescription {
     RGB albedo = RGB(0.5, 0.5, 0.5);
     RGB emissive = RGB::black();
+    float roughness = 0.2f;
+    RGB reflectionTint = RGB::black();
+    float ior = 1.5f;
 
     auto operator==(MaterialDescription const &obj) const -> bool = default;
 };

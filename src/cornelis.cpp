@@ -16,6 +16,12 @@ auto cornellBox() -> SceneDescription {
     auto red = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB{.65f, .05f, .05f}});
     auto white = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB{.73f, .73f, .73f}});
     auto green = sceneDescr.addMaterial(MaterialDescription{.albedo = RGB{.12, .45f, .15f}});
+    auto gold =
+        sceneDescr.addMaterial(MaterialDescription{.albedo = RGB::black(),
+                                                   .emissive = RGB::black(),
+                                                   .roughness = 0.01f,
+                                                   .reflectionTint = RGB(0.916f, 0.61f, 0.0f),
+                                                   .ior = 0.470});
 
     auto light = sceneDescr.addMaterial(
         MaterialDescription{.albedo = RGB::black(), .emissive = RGB{15, 15, 15}});
@@ -56,8 +62,8 @@ auto cornellBox() -> SceneDescription {
     sphere2.material = red;
     SphereDescription sphere3{.center = V3(-160, 100.0f, 0), .radius = 100.0f};
     sphere3.material = white;
-    SphereDescription sphere4{.center = V3(-160, 125.0f, 200), .radius = 125.0f};
-    sphere4.material = white;
+    SphereDescription sphere4{.center = V3(160, 125.0f, 200), .radius = 125.0f};
+    sphere4.material = gold;
 
     sceneDescr.addSphere(lightSphere);
     sceneDescr.addSphere(sphere2);
@@ -68,6 +74,6 @@ auto cornellBox() -> SceneDescription {
 }
 
 int main(int argc, char *argv[]) {
-    RenderSession session(cornellBox(), RenderOptions{.samplesAA = 1024});
+    RenderSession session(cornellBox(), RenderOptions{.samplesAA = 4096});
     session.render();
 }

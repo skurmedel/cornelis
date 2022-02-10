@@ -44,7 +44,11 @@ SceneData::SceneData(SceneDescription const &descr)
                                        descr.camera().horizontalFov)},
       materials{}, spheres{descr.spheres()}, planes{descr.planes()} {
     for (auto &matDescr : descr.materials()) {
-        materials.push_back(StandardMaterial(matDescr.albedo, matDescr.emissive));
+        materials.push_back(StandardMaterial(matDescr.albedo,
+                                             matDescr.emissive,
+                                             matDescr.reflectionTint,
+                                             matDescr.roughness,
+                                             matDescr.ior));
     }
 }
 

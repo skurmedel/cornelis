@@ -34,6 +34,7 @@ add_library(corneliscore STATIC
     SoA.cpp
     SceneDescription.cpp
     Geometry.cpp
+    Materials.cpp
 
     extern/stb_image_write.cpp
 )

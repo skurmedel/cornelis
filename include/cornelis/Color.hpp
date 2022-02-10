@@ -48,6 +48,8 @@ struct RGB {
      */
     auto operator*=(RGB const &) noexcept -> RGB &;
 
+    auto clamp(float minComponent, float maxComponent) const noexcept -> RGB;
+
     friend auto toSRGB(RGB const &) -> SRGB;
 
     auto operator<=>(RGB const &) const = default;
